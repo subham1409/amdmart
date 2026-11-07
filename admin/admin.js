@@ -2,7 +2,7 @@
 // database.rules.json (admins/<uid> must exist), so editing this file grants nothing.
 import { db } from "../firebase.js";
 import { onUser, login, logout, isAdmin, seedCategories, verifyProduct } from "../amdmart-db.js";
-import { ref, onValue, remove, set, get } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
+import { ref, onValue, remove, set, get, update } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -54,7 +54,7 @@ document.addEventListener("click", run(async (e) => {
   const t = e.target.closest("button"); if (!t) return;
   if (t.dataset.t) { tab = t.dataset.t; document.querySelectorAll(".tabs button").forEach((b) => b.classList.toggle("on", b === t)); draw(); }
   else if (t.dataset.ver) await verifyProduct(t.dataset.ver, t.dataset.val === "true");
-  else if (t.dataset.delp) { if (confirm("Delete this product?")) await remove(ref(db, `products/${t.dataset.delp}`)); }
+  else if (t.dataset.delp) { if (confirm("Delete this product?")) await update(ref(db), { [`products/${t.dataset.delp}`]: null, [`productImages/${t.dataset.delp}`]: null }); }
   else if (t.dataset.delr) { if (confirm("Delete this request?")) await remove(ref(db, `requests/${t.dataset.delr}`)); }
   else if (t.dataset.delc) { if (confirm("Delete this category?")) await remove(ref(db, `categories/${t.dataset.delc}`)); }
   else if (t.id === "seed") alert(`${await seedCategories()} categories added.`);

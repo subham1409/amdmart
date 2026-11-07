@@ -2,7 +2,7 @@
 import { auth } from "./firebase.js";
 import {
   onUser, register, login, logout, isAdmin, getUser, listenCategories, listenProducts,
-  addProduct, markSold, deleteProduct, toggleFavourite, listenFavouriteIds, sendRequest,
+  addProduct, getProductImages, markSold, deleteProduct, toggleFavourite, listenFavouriteIds, sendRequest,
   setRequestStatus, listenMyRequests, listenNotifications, markNotificationRead
 } from "./amdmart-db.js";
 
@@ -36,7 +36,7 @@ function filtered() {
     (!S.q || (p.title + " " + p.description).toLowerCase().includes(S.q)));
 }
 function card(p) {
-  const img = p.imageUrls ? Object.values(p.imageUrls)[0] : "";
+  const img = p.thumb || "";
   return `<div class="card" data-open="${p.id}">
     <div class="imgw"><div class="img" style="background-image:url('${esc(img)}')"></div>
     ${p.status === "sold" ? '<div class="sold">SOLD</div>' : ""}
@@ -122,7 +122,8 @@ function postDialog() {
 async function detail(id) {
   const p = S.products.find((x) => x.id === id) || S.mine.find((x) => x.id === id);
   if (!p) return;
-  const imgs = Object.values(p.imageUrls || {});
+  const imgs = await getProductImages(id);
+  if (!imgs.length && p.thumb) imgs.push(p.thumb);
   const seller = await getUser(p.sellerId);
   const own = S.user && S.user.uid === p.sellerId;
   open(`<div class="dgrid"><div><div class="detail-img" style="background-image:url('${esc(imgs[0] || "")}')"></div>

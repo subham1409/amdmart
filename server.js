@@ -35,7 +35,7 @@ api.get("/stats", requireUser, requireAdmin, async (req, res) => {
   res.json(out);
 });
 
-// Owner or admin: delete product + its images + everyone's favourite entries for it.
+// Owner or admin: delete product + its images (in the database) + everyone's favourite entries for it.
 api.delete("/products/:id", requireUser, async (req, res) => {
   try {
     const db = admin.database(), id = req.params.id;
@@ -43,10 +43,9 @@ api.delete("/products/:id", requireUser, async (req, res) => {
     if (!snap.exists()) return res.status(404).json({ error: "Not found" });
     const p = snap.val();
     if (p.sellerId !== req.user.uid && !req.isAdmin) return res.status(403).json({ error: "Not your product" });
-    const updates = { [`products/${id}`]: null };
+    const updates = { [`products/${id}`]: null, [`productImages/${id}`]: null };
     (await db.ref("favourites").once("value")).forEach((u) => { if (u.hasChild(id)) updates[`favourites/${u.key}/${id}`] = null; });
     await db.ref().update(updates);
-    try { await admin.storage().bucket().deleteFiles({ prefix: `products/${p.sellerId}/${id}/` }); } catch (_) {}
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

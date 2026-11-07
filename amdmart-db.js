@@ -1,5 +1,5 @@
 // amdmart-db.js — every AMD Mart feature reads/writes Firebase through these functions.
-import { auth, db, storage } from "./firebase.js";
+import { auth, db } from "./firebase.js";
 import {
   createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut,
   onAuthStateChanged, updateProfile
@@ -8,9 +8,6 @@ import {
   ref, get, set, update, remove, push, query, orderByChild, equalTo,
   onValue, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
-import {
-  ref as sRef, uploadBytes, getDownloadURL, deleteObject
-} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-storage.js";
 
 const toList = (snap) => {
   const out = [];
@@ -33,7 +30,18 @@ export async function register({ name, email, password, phone = "", college = ""
   });
   return cred.user;
 }
-export const login = (email, password) => signInWithEmailAndPassword(auth, email, password);
+export async function login(email, password) {
+  const cred = await signInWithEmailAndPassword(auth, email, password);
+  const id = cred.user.uid;
+  // Self-heal: create the profile if an earlier signup saved the account but not the profile.
+  if (!(await get(ref(db, `users/${id}`))).exists()) {
+    await update(ref(db), {
+      [`users/${id}`]: { name: cred.user.displayName || "Student", college: "", createdAt: Date.now() },
+      [`userPrivate/${id}`]: { email: cred.user.email, phone: "" }
+    });
+  }
+  return cred;
+}
 export const logout = () => signOut(auth);
 export const onUser = (cb) => onAuthStateChanged(auth, cb);
 
@@ -70,36 +78,55 @@ export async function seedCategories() {
 }
 
 /* ---------------- PRODUCTS ---------------- */
-// files: array of File objects (images). Stored in Firebase Storage, URLs saved in the database.
+// Images are resized in the browser and stored as small JPEG data-URLs in the Realtime Database
+// (no Firebase Storage / billing needed). thumb lives on the product; full images in productImages/{pid}.
+function shrink(file, max, quality) {
+  return new Promise((resolve, reject) => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => {
+      const k = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL("image/jpeg", quality));
+    };
+    img.onerror = () => reject(new Error("Could not read that image."));
+    img.src = url;
+  });
+}
 export async function addProduct(data, files = []) {
   const me = uid();
   const pid = push(ref(db, "products")).key;
-  const imageUrls = [];
-  for (let i = 0; i < Math.min(files.length, 5); i++) {
-    const r = sRef(storage, `products/${me}/${pid}/${Date.now()}_${i}`);
-    await uploadBytes(r, files[i], { contentType: files[i].type });
-    imageUrls.push(await getDownloadURL(r));
-  }
-  const product = {
+  const picks = [...files].slice(0, 3);
+  const full = [];
+  for (const f of picks) full.push(await shrink(f, 800, 0.65));
+  const thumb = picks.length ? await shrink(picks[0], 360, 0.7) : "";
+  await set(ref(db, `products/${pid}`), {
     title: data.title, description: data.description || "",
     price: Number(data.price), originalPrice: Number(data.originalPrice || data.price),
     category: data.category, condition: data.condition || "Used",
-    location: data.location || "", imageUrls,
+    location: data.location || "", thumb, imageCount: full.length,
     sellerId: me, verified: false, status: "active", createdAt: Date.now()
-  };
-  await set(ref(db, `products/${pid}`), product);
+  });
+  // product must exist first: the image rules check the product's owner
+  for (let i = 0; i < full.length; i++) await set(ref(db, `productImages/${pid}/${i}`), full[i]);
   return pid;
+}
+export async function getProductImages(pid) {
+  const s = await get(ref(db, `productImages/${pid}`));
+  return s.exists() ? Object.values(s.val()) : [];
 }
 export const updateProduct = (pid, fields) =>
   update(ref(db, `products/${pid}`), { ...fields, updatedAt: Date.now() });
 export const markSold = (pid) => updateProduct(pid, { status: "sold" });
 export async function deleteProduct(pid) {
-  const s = await get(ref(db, `products/${pid}/imageUrls`));
-  await remove(ref(db, `products/${pid}`));
-  // best-effort image cleanup (storage rules only let the owner delete)
-  for (const url of Object.values(s.val() || {})) {
-    try { await deleteObject(sRef(storage, url)); } catch (_) {}
-  }
+  // Prefer the secure backend (also cleans favourites); fall back to direct rules-protected delete.
+  try {
+    const r = await fetch(`/api/products/${pid}`, { method: "DELETE", headers: { Authorization: "Bearer " + await auth.currentUser.getIdToken() } });
+    if (r.ok) return;
+  } catch (_) {}
+  await update(ref(db), { [`productImages/${pid}`]: null, [`products/${pid}`]: null });
 }
 // Real-time product feed. opts: { category, sellerId }. Returns an unsubscribe function.
 export function listenProducts(cb, opts = {}) {
