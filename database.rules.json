@@ -2,7 +2,6 @@
   "rules": {
     ".read": false,
     ".write": false,
-
     "admins": {
       ".read": false,
       "$uid": {
@@ -10,87 +9,171 @@
         ".write": false
       }
     },
-
     "users": {
       ".read": "auth != null && root.child('admins').child(auth.uid).exists()",
       "$uid": {
         ".read": "auth != null",
         ".write": "auth != null && auth.uid === $uid",
         ".validate": "newData.hasChildren(['name','createdAt'])",
-        "name": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 60" },
-        "college": { ".validate": "newData.isString() && newData.val().length <= 80" },
-        "createdAt": { ".validate": "newData.isNumber()" },
-        "$other": { ".validate": false }
+        "name": {
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 60"
+        },
+        "college": {
+          ".validate": "newData.isString() && newData.val().length <= 80"
+        },
+        "createdAt": {
+          ".validate": "newData.isNumber()"
+        },
+        "$other": {
+          ".validate": false
+        }
       }
     },
-
     "userPrivate": {
       "$uid": {
         ".read": "auth != null && (auth.uid === $uid || root.child('admins').child(auth.uid).exists())",
         ".write": "auth != null && auth.uid === $uid",
-        "email": { ".validate": "newData.isString() && newData.val().length <= 120" },
-        "phone": { ".validate": "newData.isString() && newData.val().length <= 20" },
-        "$other": { ".validate": false }
+        "email": {
+          ".validate": "newData.isString() && newData.val().length <= 120"
+        },
+        "phone": {
+          ".validate": "newData.isString() && newData.val().length <= 20"
+        },
+        "$other": {
+          ".validate": false
+        }
       }
     },
-
     "categories": {
       ".read": true,
       "$cid": {
         ".write": "auth != null && root.child('admins').child(auth.uid).exists()",
         ".validate": "newData.hasChildren(['name'])",
-        "name": { ".validate": "newData.isString() && newData.val().length <= 60" },
-        "order": { ".validate": "newData.isNumber()" },
-        "$other": { ".validate": false }
+        "name": {
+          ".validate": "newData.isString() && newData.val().length <= 60"
+        },
+        "order": {
+          ".validate": "newData.isNumber()"
+        },
+        "$other": {
+          ".validate": false
+        }
       }
     },
-
     "products": {
       ".read": true,
-      ".indexOn": ["category", "sellerId", "createdAt", "status"],
+      ".indexOn": [
+        "category",
+        "sellerId",
+        "createdAt",
+        "status"
+      ],
       "$pid": {
         ".write": "auth != null && ((!data.exists() && newData.child('sellerId').val() === auth.uid) || (data.exists() && (data.child('sellerId').val() === auth.uid || root.child('admins').child(auth.uid).exists())))",
         ".validate": "newData.hasChildren(['title','price','category','sellerId','status','createdAt','verified'])",
-        "title": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100" },
-        "description": { ".validate": "newData.isString() && newData.val().length <= 2000" },
-        "price": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000" },
-        "originalPrice": { ".validate": "newData.isNumber() && newData.val() >= 0" },
-        "category": { ".validate": "newData.isString() && root.child('categories').child(newData.val()).exists()" },
-        "condition": { ".validate": "newData.isString() && newData.val().length <= 30" },
-        "location": { ".validate": "newData.isString() && newData.val().length <= 100" },
-        "imageUrls": { "$i": { ".validate": "newData.isString() && newData.val().length < 1000" } },
-        "sellerId": { ".validate": "data.exists() ? newData.val() === data.val() : newData.val() === auth.uid" },
-        "verified": { ".validate": "newData.isBoolean() && (root.child('admins').child(auth.uid).exists() || newData.val() === (data.exists() ? data.val() : false))" },
-        "status": { ".validate": "newData.isString() && newData.val().matches(/^(active|sold)$/)" },
-        "createdAt": { ".validate": "newData.isNumber()" },
-        "updatedAt": { ".validate": "newData.isNumber()" },
-        "$other": { ".validate": false }
+        "title": {
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
+        },
+        "description": {
+          ".validate": "newData.isString() && newData.val().length <= 2000"
+        },
+        "price": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000"
+        },
+        "originalPrice": {
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "category": {
+          ".validate": "newData.isString() && root.child('categories').child(newData.val()).exists()"
+        },
+        "condition": {
+          ".validate": "newData.isString() && newData.val().length <= 30"
+        },
+        "location": {
+          ".validate": "newData.isString() && newData.val().length <= 100"
+        },
+        "sellerId": {
+          ".validate": "data.exists() ? newData.val() === data.val() : newData.val() === auth.uid"
+        },
+        "verified": {
+          ".validate": "newData.isBoolean() && (root.child('admins').child(auth.uid).exists() || newData.val() === (data.exists() ? data.val() : false))"
+        },
+        "status": {
+          ".validate": "newData.isString() && newData.val().matches(/^(active|sold)$/)"
+        },
+        "createdAt": {
+          ".validate": "newData.isNumber()"
+        },
+        "updatedAt": {
+          ".validate": "newData.isNumber()"
+        },
+        "$other": {
+          ".validate": false
+        },
+        "thumb": {
+          ".validate": "newData.isString() && newData.val().length < 100000"
+        },
+        "imageCount": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 3"
+        },
+        "imageUrls": {
+          "$i": {
+            ".validate": "newData.isString() && newData.val().length < 1000"
+          }
+        }
       }
     },
-
+    "productImages": {
+      "$pid": {
+        ".read": true,
+        "$i": {
+          ".validate": "newData.isString() && newData.val().matches(/^data:image\\/jpeg;base64,/) && newData.val().length < 400000"
+        },
+        ".write": "auth != null && (root.child('products').child($pid).child('sellerId').val() === auth.uid || root.child('admins').child(auth.uid).exists())"
+      }
+    },
     "favourites": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
         ".write": "auth != null && auth.uid === $uid",
-        "$pid": { ".validate": "newData.isNumber()" }
+        "$pid": {
+          ".validate": "newData.isNumber()"
+        }
       }
     },
-
     "requests": {
       ".read": "auth != null && root.child('admins').child(auth.uid).exists()",
       "$rid": {
         ".read": "auth != null && (data.child('buyerId').val() === auth.uid || data.child('sellerId').val() === auth.uid)",
         ".write": "auth != null && ((!data.exists() && newData.child('buyerId').val() === auth.uid) || (data.exists() && !newData.exists() && root.child('admins').child(auth.uid).exists()))",
         ".validate": "newData.hasChildren(['productId','buyerId','sellerId','status','createdAt']) && newData.child('buyerId').val() !== newData.child('sellerId').val()",
-        "productId": { ".validate": "newData.isString() && root.child('products').child(newData.val()).exists()" },
-        "productTitle": { ".validate": "newData.isString() && newData.val().length <= 100" },
-        "buyerId": { ".validate": "newData.val() === auth.uid" },
-        "buyerName": { ".validate": "newData.isString() && newData.val().length <= 60" },
-        "sellerId": { ".validate": "newData.val() === root.child('products').child(newData.parent().child('productId').val()).child('sellerId').val()" },
-        "message": { ".validate": "newData.isString() && newData.val().length <= 500" },
+        "productId": {
+          ".validate": "newData.isString() && root.child('products').child(newData.val()).exists()"
+        },
+        "productTitle": {
+          ".validate": "newData.isString() && newData.val().length <= 100"
+        },
+        "buyerId": {
+          ".validate": "newData.val() === auth.uid"
+        },
+        "buyerName": {
+          ".validate": "newData.isString() && newData.val().length <= 60"
+        },
+        "sellerId": {
+          ".validate": "newData.val() === root.child('products').child(newData.parent().child('productId').val()).child('sellerId').val()"
+        },
+        "message": {
+          ".validate": "newData.isString() && newData.val().length <= 500"
+        },
         "status": {
           ".write": "auth != null && ((data.parent().child('sellerId').val() === auth.uid && newData.val().matches(/^(accepted|rejected)$/)) || (data.parent().child('buyerId').val() === auth.uid && newData.val() === 'cancelled'))",
           ".validate": "newData.isString() && newData.val().matches(/^(pending|accepted|rejected|cancelled)$/) && (data.exists() || newData.val() === 'pending')"
+        },
+        "createdAt": {
+          ".validate": "newData.isNumber()"
+        },
+        "$other": {
+          ".validate": false
         },
         "adminStatus": {
           ".write": "auth != null && root.child('admins').child(auth.uid).exists()",
@@ -99,12 +182,9 @@
         "adminUpdatedAt": {
           ".write": "auth != null && root.child('admins').child(auth.uid).exists()",
           ".validate": "newData.isNumber()"
-        },
-        "createdAt": { ".validate": "newData.isNumber()" },
-        "$other": { ".validate": false }
+        }
       }
     },
-
     "userRequests": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
@@ -114,21 +194,36 @@
         }
       }
     },
-
     "notifications": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
         "$nid": {
           ".write": "auth != null && (auth.uid === $uid || (!data.exists() && newData.child('fromUid').val() === auth.uid))",
           ".validate": "newData.hasChildren(['type','title','message','read','createdAt','fromUid'])",
-          "type": { ".validate": "newData.isString() && newData.val().length <= 30" },
-          "title": { ".validate": "newData.isString() && newData.val().length <= 100" },
-          "message": { ".validate": "newData.isString() && newData.val().length <= 300" },
-          "requestId": { ".validate": "newData.isString()" },
-          "fromUid": { ".validate": "newData.isString()" },
-          "read": { ".validate": "newData.isBoolean()" },
-          "createdAt": { ".validate": "newData.isNumber()" },
-          "$other": { ".validate": false }
+          "type": {
+            ".validate": "newData.isString() && newData.val().length <= 30"
+          },
+          "title": {
+            ".validate": "newData.isString() && newData.val().length <= 100"
+          },
+          "message": {
+            ".validate": "newData.isString() && newData.val().length <= 300"
+          },
+          "requestId": {
+            ".validate": "newData.isString()"
+          },
+          "fromUid": {
+            ".validate": "newData.isString()"
+          },
+          "read": {
+            ".validate": "newData.isBoolean()"
+          },
+          "createdAt": {
+            ".validate": "newData.isNumber()"
+          },
+          "$other": {
+            ".validate": false
+          }
         }
       }
     }
