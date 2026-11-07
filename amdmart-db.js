@@ -50,6 +50,13 @@ export async function isAdmin() {
   if (!auth.currentUser) return false;
   return (await get(ref(db, `admins/${auth.currentUser.uid}`))).exists();
 }
+// Preferred area, stored privately (owner + admin only) as area name + approximate coordinates. Never a street address.
+export const saveLocationPref = (loc) =>
+  set(ref(db, `userPrivate/${uid()}/locationPref`), { area: loc.area, lat: loc.lat, lng: loc.lng, src: loc.src || "manual" });
+export async function getLocationPref() {
+  const s = await get(ref(db, `userPrivate/${uid()}/locationPref`));
+  return s.exists() ? s.val() : null;
+}
 export async function getUser(id) {
   const s = await get(ref(db, `users/${id}`));
   return s.exists() ? { id, ...s.val() } : null;
@@ -108,12 +115,15 @@ export async function addProduct(data, files = []) {
   const pid = push(ref(db, "products")).key;
   const picks = [...files].slice(0, 3);
   const done = await Promise.all(picks.map((f, i) => prepare(f, i === 0)));
+  // Approximate pickup area only (area name + the area's centre point), never a seller's exact address.
+  const hasGeo = data.area && Number.isFinite(Number(data.lat)) && Number.isFinite(Number(data.lng));
+  const geo = hasGeo ? { area: String(data.area), lat: Number(data.lat), lng: Number(data.lng) } : {};
   const full = done.map((d) => d.full);
   await set(ref(db, `products/${pid}`), {
     title: data.title, description: data.description || "",
     price: Number(data.price), originalPrice: Number(data.originalPrice || data.price),
     category: data.category, condition: data.condition || "Used",
-    location: data.location || "", thumb: done[0]?.thumb || "", imageCount: full.length,
+    location: data.area || data.location || "", ...geo, thumb: done[0]?.thumb || "", imageCount: full.length,
     sellerId: me, verified: false, status: "active", createdAt: Date.now()
   });
   // product must exist first: the image rules check the product's owner. One write for all photos.
@@ -136,13 +146,13 @@ export async function deleteProduct(pid) {
   await update(ref(db), { [`productImages/${pid}`]: null, [`products/${pid}`]: null });
 }
 // Real-time product feed. opts: { category, sellerId }. Returns an unsubscribe function.
-export function listenProducts(cb, opts = {}) {
+export function listenProducts(cb, opts = {}, onError) {
   let q = ref(db, "products");
   if (opts.sellerId) q = query(q, orderByChild("sellerId"), equalTo(opts.sellerId));
   else if (opts.category) q = query(q, orderByChild("category"), equalTo(opts.category));
   return onValue(q, (s) =>
     cb(toList(s).filter((p) => p.status === "active" || opts.sellerId)
-      .sort((a, b) => b.createdAt - a.createdAt)));
+      .sort((a, b) => b.createdAt - a.createdAt)), onError);
 }
 export async function getProduct(pid) {
   const s = await get(ref(db, `products/${pid}`));
