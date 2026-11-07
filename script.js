@@ -216,9 +216,7 @@ function renderProfile() {
 }
 function renderBell() { $("#dot").classList.toggle("hidden", !S.notifs.some((n) => !n.read)); }
 function renderFavBtn() {
-  const n = S.favs.length, c = $("#fav-count");
-  c.textContent = n > 99 ? "99+" : n; c.classList.toggle("hidden", !n);
-  $("#fav-btn").classList.toggle("has", n > 0);
+  $("#fav-count").classList.toggle("hidden", !S.favs.length); // red dot, same as the bell
 }
 const favItems = () => S.products.filter((p) => S.favs.includes(p.id));
 const favListHtml = () => favItems().map(card).join("") || '<p class="empty">No liked products yet. Tap the heart on any product to save it here.</p>';
@@ -272,9 +270,8 @@ function postDialog() {
 async function detail(id) {
   const p = S.products.find((x) => x.id === id) || S.mine.find((x) => x.id === id);
   if (!p) return;
-  const imgs = await getProductImages(id);
+  const [imgs, seller] = await Promise.all([getProductImages(id), getUser(p.sellerId)]);
   if (!imgs.length && p.thumb) imgs.push(p.thumb);
-  const seller = await getUser(p.sellerId);
   const own = S.user && S.user.uid === p.sellerId;
   open(`<div class="dgrid"><div><div class="detail-img" style="background-image:url('${esc(imgs[0] || "")}')"></div>
     <div class="thumbs">${imgs.slice(1).map((u) => `<div style="background-image:url('${esc(u)}')"></div>`).join("")}</div></div><div>

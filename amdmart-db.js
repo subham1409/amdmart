@@ -119,15 +119,17 @@ export async function addProduct(data, files = []) {
   const hasGeo = data.area && Number.isFinite(Number(data.lat)) && Number.isFinite(Number(data.lng));
   const geo = hasGeo ? { area: String(data.area), lat: Number(data.lat), lng: Number(data.lng) } : {};
   const full = done.map((d) => d.full);
-  await set(ref(db, `products/${pid}`), {
+  const record = {
     title: data.title, description: data.description || "",
     price: Number(data.price), originalPrice: Number(data.originalPrice || data.price),
     category: data.category, condition: data.condition || "Used",
     location: data.area || data.location || "", ...geo, thumb: done[0]?.thumb || "", imageCount: full.length,
     sellerId: me, verified: false, status: "active", createdAt: Date.now()
-  });
-  // product must exist first: the image rules check the product's owner. One write for all photos.
-  if (full.length) await update(ref(db, `productImages/${pid}`), Object.fromEntries(full.map((d, i) => [i, d])));
+  };
+  // ONE database round trip: product + all photos together (rules updated to allow this; see database.rules.json).
+  const writes = { [`products/${pid}`]: record };
+  full.forEach((d, i) => { writes[`productImages/${pid}/${i}`] = d; });
+  await update(ref(db), writes);
   return pid;
 }
 export async function getProductImages(pid) {
