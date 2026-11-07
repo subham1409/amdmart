@@ -3,12 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#6c7a89">
 <title>AMD Mart – Ahmedabad Students' Marketplace</title>
-<link rel="icon" href="https://i.ibb.co/qL84QwQm/A6-E453-B6-2581-4-D2-B-B99-F-C6-C82-FF4-FE6-A.png">
+<link rel="icon" href="https://i.ibb.co/bMYks47x/CAC2-C97-E-E72-A-4-CA6-BAD6-3528-ED8-FD19-C.png">
 <style>
-:root{--o:#f26a0f;--o2:#ffece0;--d:#161616;--g:#777;--bg:#fff8f5;--r:18px}
+:root{--o:#6c7a89;--o2:#e9edf1;--d:#354252;--g:#777;--bg:#f7f9fb;--r:18px}
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:system-ui,"Segoe UI",Roboto,sans-serif;background:#e9e4e1;color:var(--d)}
+body{font-family:system-ui,"Segoe UI",Roboto,sans-serif;background:#e2e7ec;color:var(--d)}
 button,input,select,textarea{font:inherit}
 button{cursor:pointer;border:0;background:none;color:inherit}
 .hidden{display:none!important}
@@ -23,9 +24,9 @@ button{cursor:pointer;border:0;background:none;color:inherit}
 .top-r{display:flex;gap:4px;align-items:center}
 .pill{display:flex;align-items:center;gap:4px;background:var(--o2);padding:9px 14px;border-radius:30px;font-weight:600;font-size:14px}.pill .ic{width:18px;height:18px;color:var(--o)}
 .icon-btn{position:relative;display:grid;place-items:center;width:36px;height:36px}
-.dot{position:absolute;top:5px;right:7px;width:9px;height:9px;background:#e53935;border-radius:50%;border:2px solid var(--bg)}
+.dot{position:absolute;top:5px;right:7px;width:9px;height:9px;background:#c2453b;border-radius:50%;border:2px solid var(--bg)}
 
-.hero{background:linear-gradient(110deg,#151515 45%,#b34a0a 100%);color:#fff;border-radius:var(--r);padding:26px 16px 26px 20px;display:flex;justify-content:space-between;align-items:center;overflow:hidden;margin:6px 0 14px}
+.hero{background:linear-gradient(110deg,#354252 45%,#6c7a89 100%);color:#fff;border-radius:var(--r);padding:26px 16px 26px 20px;display:flex;justify-content:space-between;align-items:center;overflow:hidden;margin:6px 0 14px}
 .hero h2{font:italic 700 25px/1.12 Georgia,serif}.hero h2 span{color:var(--o)}
 .hero .tag{display:block;margin-top:1px;font-size:11.5px;letter-spacing:.3px;color:rgba(255,255,255,.72)}
 .hero p{margin-top:0;font-size:13px}.hero b{color:var(--o)}
@@ -34,7 +35,7 @@ button{cursor:pointer;border:0;background:none;color:inherit}
 .hero-art{position:absolute;right:0;top:0;height:100%;width:68%;z-index:0;opacity:.55;-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 42%);mask-image:linear-gradient(90deg,transparent 0,#000 42%)}
 /* Optional real photo: save any Ahmedabad photo as hero.jpg next to index.html and it fades in over the drawing automatically */
 .hero::after{content:"";position:absolute;right:0;top:0;height:100%;width:68%;z-index:1;pointer-events:none;background:url("hero.jpg") center/cover no-repeat;opacity:.55;-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 45%);mask-image:linear-gradient(90deg,transparent 0,#000 45%)}
-.search{display:flex;align-items:center;gap:10px;width:100%;padding:0 18px;border-radius:30px;background:#f1e9e6;box-shadow:inset 0 1px 3px #0002;margin-bottom:16px;color:var(--g)}
+.search{display:flex;align-items:center;gap:10px;width:100%;padding:0 18px;border-radius:30px;background:#eef1f4;box-shadow:inset 0 1px 3px #0002;margin-bottom:16px;color:var(--g)}
 .search input{border:0;background:none;outline:none;padding:15px 0;width:100%;color:var(--d)}
 
 .cats{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:18px}
@@ -53,11 +54,11 @@ button{cursor:pointer;border:0;background:none;color:inherit}
 .loc{display:flex;align-items:center;gap:3px;color:var(--g);font-size:11px;margin-top:2px}.loc .ic{width:13px;height:13px}
 .ver{position:absolute;left:6px;bottom:6px;background:var(--o);color:#fff;font-size:10px;padding:3px 8px;border-radius:12px}
 .heart{position:absolute;right:6px;top:6px;background:#fffe;border-radius:50%;width:30px;height:30px;display:grid;place-items:center;color:#555}
-.heart .ic{width:16px;height:16px}.heart.on{color:#e53935}.heart.on .ic{fill:#e53935}
+.heart .ic{width:16px;height:16px}.heart.on{color:#c2453b}.heart.on .ic{fill:#c2453b}
 .sold{position:absolute;inset:0 0 auto 0;background:#000a;color:#fff;text-align:center;font-size:12px;padding:3px}
 
 .btn{background:var(--o);color:#fff;padding:12px 16px;border-radius:12px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;gap:6px;text-decoration:none}
-.btn:disabled{opacity:.5}.btn.ghost{background:var(--o2);color:var(--o)}.btn.red{background:#d33}.btn.sm{padding:7px 12px;font-size:13px}.btn.full{width:100%}
+.btn:disabled{opacity:.5}.btn.ghost{background:var(--o2);color:var(--o)}.btn.red{background:#c2453b}.btn.sm{padding:7px 12px;font-size:13px}.btn.full{width:100%}
 
 .chips{display:flex;gap:8px;overflow-x:auto;margin-bottom:14px;scrollbar-width:none}
 .chip{white-space:nowrap;padding:8px 14px;border-radius:20px;background:var(--o2);font-size:13px}.chip.on{background:var(--o);color:#fff}
@@ -71,7 +72,7 @@ button{cursor:pointer;border:0;background:none;color:inherit}
 .nav button{display:flex;flex-direction:column;align-items:center;font-size:11.5px;color:#555;gap:3px}
 .nav button.on{color:var(--o);font-weight:700}
 .nav .fab{color:var(--o);font-weight:600;white-space:nowrap;font-size:11px}
-.fab-c{width:58px;height:58px;border-radius:50%;background:var(--o);color:#fff;display:grid;place-items:center;margin-top:-34px;border:4px solid #fff;box-shadow:0 4px 12px #f26a0f66}
+.fab-c{width:58px;height:58px;border-radius:50%;background:var(--o);color:#fff;display:grid;place-items:center;margin-top:-34px;border:4px solid #fff;box-shadow:0 4px 12px #6c7a8966}
 .fab-c .ic{width:28px;height:28px;stroke-width:2.2}
 
 dialog{border:0;border-radius:20px;padding:20px;width:min(92vw,440px);max-height:90vh;overflow:auto;margin:auto}
@@ -84,7 +85,7 @@ form input,form select,form textarea{padding:12px;border:1px solid #ddd;border-r
 .thumbs{display:flex;gap:6px;margin-bottom:10px}.thumbs div{width:54px;height:54px;border-radius:8px;background:#eee center/cover}
 .toast{position:fixed;bottom:110px;left:50%;transform:translateX(-50%);background:var(--d);color:#fff;padding:10px 18px;border-radius:24px;font-size:14px;z-index:20}
 /* location pill + popup */
-.loc-pill{display:flex;align-items:center;gap:3px;height:30px;padding:0 8px 0 7px;border-radius:15px;background:var(--o2);border:1px solid #f26a0f26;font-size:12.5px;font-weight:600;color:var(--d);max-width:132px}
+.loc-pill{display:flex;align-items:center;gap:3px;height:30px;padding:0 8px 0 7px;border-radius:15px;background:var(--o2);border:1px solid #6c7a8933;font-size:12.5px;font-weight:600;color:var(--d);max-width:132px}
 .loc-pill .ic{width:14px;height:14px;color:var(--o)}.loc-pill .chev{width:12px;height:12px;stroke-width:2.4}
 .loc-pill span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:92px}
 .brand>div{min-width:0}
@@ -98,7 +99,7 @@ form input,form select,form textarea{padding:12px;border:1px solid #ddd;border-r
 .loc-cur small{margin-left:auto;color:var(--g)}
 .loc-err{background:#fdecea;color:#b3261e;border-radius:10px;padding:10px 12px;font-size:13px;margin-top:10px}
 .or{display:flex;align-items:center;gap:10px;color:var(--g);font-size:12px;margin:14px 0 10px}
-.or:before,.or:after{content:"";flex:1;height:1px;background:#e5dcd8}
+.or:before,.or:after{content:"";flex:1;height:1px;background:#dde3e9}
 .loc-q{width:100%;padding:11px 12px;border:1px solid #ddd;border-radius:10px;margin-bottom:8px}
 .loc-list{display:grid;grid-template-columns:1fr 1fr;gap:6px;max-height:220px;overflow:auto}
 .area{display:flex;align-items:center;gap:6px;padding:9px 10px;border-radius:10px;background:var(--o2);font-size:13px;text-align:left}
@@ -112,7 +113,7 @@ button,a,.area,.cat,.card{touch-action:manipulation;-webkit-tap-highlight-color:
 .dlg-poly:not([open]){display:none}
 /* liked products button in top bar */
 /* How AMD Mart works */
-.hiw{background:#fff;border:1px solid #f26a0f1f;border-radius:var(--r);box-shadow:0 2px 10px #0001;padding:14px 14px 12px;margin:0 0 16px}
+.hiw{background:#fff;border:1px solid #6c7a8929;border-radius:var(--r);box-shadow:0 2px 10px #0001;padding:14px 14px 12px;margin:0 0 16px}
 .hiw h3{font-size:17px;line-height:1.2}
 .hiw summary{list-style:none;cursor:pointer;display:block;-webkit-tap-highlight-color:transparent}
 .hiw summary::-webkit-details-marker{display:none}
@@ -126,10 +127,10 @@ button,a,.area,.cat,.card{touch-action:manipulation;-webkit-tap-highlight-color:
 .hiw-steps{list-style:none}
 .hiw-steps li{position:relative;display:flex;gap:12px;align-items:flex-start;padding-bottom:16px}
 .hiw-steps li:last-child{padding-bottom:0}
-.hiw-i{position:relative;flex:none;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;color:#fff;background:linear-gradient(135deg,#ff8a3d,var(--o));box-shadow:0 3px 8px #f26a0f55}
+.hiw-i{position:relative;flex:none;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;color:#fff;background:linear-gradient(135deg,#8d9aa8,var(--o));box-shadow:0 3px 8px #6c7a8955}
 .hiw-i .ic{width:19px;height:19px;stroke-width:2}
 .hiw-i b{position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:50%;background:var(--d);color:#fff;font-size:10px;line-height:16px;text-align:center;border:1.5px solid #fff}
-.hiw-steps li:not(:last-child)::before{content:"";position:absolute;left:18px;top:42px;bottom:9px;border-left:2px dashed #f26a0f66}
+.hiw-steps li:not(:last-child)::before{content:"";position:absolute;left:18px;top:42px;bottom:9px;border-left:2px dashed #6c7a8966}
 .hiw-steps li:not(:last-child)::after{content:"";position:absolute;left:14.5px;bottom:5px;width:7px;height:7px;border-right:2px solid var(--o);border-bottom:2px solid var(--o);transform:rotate(45deg)}
 .hiw-steps h4{font-size:13.5px;line-height:1.25;padding-top:2px}
 .hiw-steps p{font-size:12px;line-height:1.4;color:var(--g);margin-top:2px}
@@ -154,23 +155,41 @@ dialog.full .x{display:none}
 .more-h{margin:24px 0 10px;font-size:15px}
 /* live request status tracker */
 .trk{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
-.trk-s{display:flex;gap:8px;align-items:center;padding:8px 10px;border-radius:12px;background:#f6f1ee}
+.trk-s{display:flex;gap:8px;align-items:center;padding:8px 10px;border-radius:12px;background:#eef1f4}
 .trk-s small{display:block;font-size:11px;color:var(--g)}.trk-s b{font-size:12.5px;line-height:1.2}
 .trk-s i{flex:none;width:12px;height:12px;border-radius:50%}
-.trk-s.wait i{background:#f2a20f;animation:trkp 1.2s ease-in-out infinite}
+.trk-s.wait i{background:#6c7a89;animation:trkp 1.2s ease-in-out infinite}
 .trk-s.ok{background:#e8f6ec}.trk-s.ok i{background:#2e9e55}
-.trk-s.no{background:#fdecea}.trk-s.no i{background:#d33}
+.trk-s.no{background:#fdecea}.trk-s.no i{background:#c2453b}
 .trk-m{margin-top:8px;font-size:12px;color:var(--g)}.trk-m.ok{color:#2e9e55;font-weight:600}.trk-m.no{color:#b3261e}
 @keyframes trkp{50%{opacity:.3;transform:scale(.8)}}
 /* profile card + edit dialog */
 .pf{display:flex;flex-direction:column;gap:2px;margin:2px 0 0;color:var(--g)}
 .fl{font-size:12px;color:var(--g);margin-bottom:-6px}
-.sep{height:1px;background:#e5dcd8;margin:16px 0 12px}
+.sep{height:1px;background:#dde3e9;margin:16px 0 12px}
 dialog h4{margin-bottom:4px}
 /* floating WhatsApp chat button (bottom right, above the nav bar) */
 .wa{position:fixed;bottom:92px;right:max(14px,calc(50vw - 226px));width:52px;height:52px;border-radius:50%;background:#25d366;color:#fff;display:grid;place-items:center;box-shadow:0 4px 14px #0004;z-index:4;text-decoration:none;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .wa svg{width:30px;height:30px;fill:currentColor}
 .wa:active{transform:scale(.94)}
+
+/* ===== Slate Blue premium theme ===== */
+:root{--od:#354252;--sl1:#6c7a89}
+body{background:#e2e7ec}
+.btn{background:linear-gradient(135deg,var(--sl1),var(--od));box-shadow:0 4px 12px #35425238;letter-spacing:.2px}
+.btn.ghost{background:var(--o2);color:var(--od);box-shadow:none}
+.btn.red{background:#c2453b;box-shadow:none}
+.price,.sec-h a,.dist,.hiw-sub,.hiw-tap,.hiw-note b,.badge,.nav button.on,.nav .fab,#sw{color:var(--od)!important}
+.hero h2 span,.hero b{color:#c9d1d9!important}
+.hero{box-shadow:0 12px 30px #35425238}
+.card,.row,.hiw{box-shadow:0 4px 16px #35425214}
+.nav{box-shadow:0 -4px 22px #35425222}
+.fab-c{background:linear-gradient(135deg,var(--sl1),var(--od));box-shadow:0 6px 16px #35425266}
+.chip.on,.area.on{background:var(--od)}
+.ver{background:var(--od)}
+.search{box-shadow:inset 0 1px 3px #3542521f}
+.trk-s.wait{background:#eef1f4}
+.trk-m.ok{color:#2f8f5b}
 </style>
 </head>
 <body>
@@ -206,7 +225,7 @@ dialog h4{margin-bottom:4px}
 </defs></svg>
 <div id="app">
   <header class="top">
-    <div class="brand"><img src="https://i.ibb.co/qL84QwQm/A6-E453-B6-2581-4-D2-B-B99-F-C6-C82-FF4-FE6-A.png" alt=""><div><h1>AMD <span>Mart</span></h1></div></div>
+    <div class="brand"><img src="https://i.ibb.co/bMYks47x/CAC2-C97-E-E72-A-4-CA6-BAD6-3528-ED8-FD19-C.png" alt=""><div><h1>AMD <span>Mart</span></h1></div></div>
     <div class="top-r">
       <button id="loc-btn" class="loc-pill" aria-label="Change location" title="Change location"><svg class="ic"><use href="#i-pin"/></svg><span id="loc-name">Select area</span><svg class="ic chev"><use href="#i-chev"/></svg></button>
       <button id="fav-btn" class="icon-btn" aria-label="Liked products" title="Liked products"><svg class="ic"><use href="#i-heart"/></svg><i id="fav-count" class="dot hidden"></i></button>
@@ -217,24 +236,24 @@ dialog h4{margin-bottom:4px}
   <main>
     <section id="v-home" class="view">
       <div class="hero"><div class="hero-t"><div><h2>From Students,<br><span>For Students.</span></h2><small class="tag">Ahmedabad Students' Marketplace</small></div><p>Buy <b>•</b> Sell <b>•</b> Reuse <b>•</b> Connect</p></div><svg class="hero-art" viewBox="0 0 300 130" preserveAspectRatio="xMaxYMax slice" aria-hidden="true"><defs>
-<linearGradient id="hs" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#24110a"/><stop offset=".45" stop-color="#8a3a10"/><stop offset=".8" stop-color="#f08a3c"/><stop offset="1" stop-color="#ffc27a"/></linearGradient>
-<linearGradient id="hr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e8782a"/><stop offset="1" stop-color="#2a1209"/></linearGradient>
-<radialGradient id="hg"><stop offset="0" stop-color="#fff1c9"/><stop offset=".5" stop-color="#ffc27a" stop-opacity=".6"/><stop offset="1" stop-color="#ffc27a" stop-opacity="0"/></radialGradient>
-<clipPath id="hc"><rect x="0" y="95" width="300" height="35"/></clipPath></defs><rect width="300" height="95" fill="url(#hs)"/><circle cx="205" cy="76" r="36" fill="url(#hg)"/><circle cx="205" cy="76" r="17" fill="#fff1c9"/><g fill="#2a1209" opacity=".92">
+<linearGradient id="hs" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#354252"/><stop offset=".45" stop-color="#526173"/><stop offset=".8" stop-color="#8d9aa8"/><stop offset="1" stop-color="#c9d1d9"/></linearGradient>
+<linearGradient id="hr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6c7a89"/><stop offset="1" stop-color="#28323f"/></linearGradient>
+<radialGradient id="hg"><stop offset="0" stop-color="#f4f7fa"/><stop offset=".5" stop-color="#c9d1d9" stop-opacity=".6"/><stop offset="1" stop-color="#c9d1d9" stop-opacity="0"/></radialGradient>
+<clipPath id="hc"><rect x="0" y="95" width="300" height="35"/></clipPath></defs><rect width="300" height="95" fill="url(#hs)"/><circle cx="205" cy="76" r="36" fill="url(#hg)"/><circle cx="205" cy="76" r="17" fill="#f4f7fa"/><g fill="#28323f" opacity=".92">
 <path d="M34 92V74h42v18zM34 74h42v-4H34zM38 70v-4h4v4zM48 70v-4h4v4zM58 70v-4h4v4zM68 70v-4h4v4z"/>
 
 <rect x="92" y="62" width="12" height="30"/><rect x="106" y="52" width="14" height="40"/><rect x="122" y="68" width="10" height="24"/><rect x="140" y="46" width="3.5" height="46"/><rect x="141" y="42" width="1.5" height="4"/><path d="M138 46h7.5l-3.75-4z"/>
 <rect x="154" y="46" width="3.5" height="46"/><rect x="155" y="42" width="1.5" height="4"/><path d="M152 46h7.5l-3.75-4z"/>
 <path d="M142 92V76c0-8 14-8 14 0v16z"/><path d="M160 92V80h22v12zM164 80c0-8 14-8 14 0z"/><rect x="234" y="58" width="11" height="34"/><rect x="247" y="68" width="13" height="24"/><rect x="262" y="52" width="12" height="40"/><rect x="276" y="64" width="14" height="28"/>
 
-</g><g><path d="M70 92L88 92L88 81.6L70 92.0z" fill="#ff5a36" opacity=".85"/><path d="M88 92L106 92L106 73.0L88 81.6z" fill="#ffc93c" opacity=".85"/><path d="M106 92L124 92L124 66.4L106 73.0z" fill="#2ec4b6" opacity=".85"/><path d="M124 92L142 92L142 61.7L124 66.4z" fill="#ff8fab" opacity=".85"/><path d="M142 92L160 92L160 58.9L142 61.7z" fill="#7b5cff" opacity=".85"/><path d="M160 92L178 92L178 58.0L160 58.9z" fill="#ff9f1c" opacity=".85"/><path d="M178 92L196 92L196 59.0L178 58.0z" fill="#ff5a36" opacity=".85"/><path d="M196 92L214 92L214 61.9L196 59.0z" fill="#ffc93c" opacity=".85"/><path d="M214 92L232 92L232 66.7L214 61.9z" fill="#2ec4b6" opacity=".85"/><path d="M232 92L250 92L250 73.5L232 66.7z" fill="#ff8fab" opacity=".85"/><path d="M250 92L268 92L268 82.1L250 73.5z" fill="#7b5cff" opacity=".85"/><path d="M268 92L286 92L286 92.6L268 82.1z" fill="#ff9f1c" opacity=".85"/><polyline points="70,92 79,86.5 88,92 97,77.1 106,92 115,69.5 124,92 133,63.8 142,92 151,60.1 160,92 169,58.2 178,92 187,58.3 196,92 205,60.2 214,92 223,64.1 232,92 241,69.9 250,92 259,77.5 268,92 277,87.1 286,92" fill="none" stroke="#1a0b05" stroke-width="1.1"/><path d="M70 92L70 92.0L76 88.3L82 84.8L88 81.6L94 78.5L100 75.7L106 73.0L112 70.6L118 68.4L124 66.4L130 64.6L136 63.1L142 61.7L148 60.6L154 59.6L160 58.9L166 58.4L172 58.1L178 58.0L184 58.1L190 58.5L196 59.0L202 59.8L208 60.7L214 61.9L220 63.3L226 64.9L232 66.7L238 68.8L244 71.0L250 73.5L256 76.1L262 79.0L268 82.1L274 85.4L280 88.9L286 92.6" fill="none" stroke="#1a0b05" stroke-width="2"/><rect x="62" y="91" width="232" height="4" fill="#1a0b05"/><path d="M110 95v6M178 95v6M246 95v6" stroke="#1a0b05" stroke-width="3"/></g><rect x="0" y="95" width="300" height="35" fill="url(#hr)"/><g clip-path="url(#hc)"><g transform="translate(0 190) scale(1 -1)" opacity=".25"><g fill="#2a1209" opacity=".92">
+</g><g><path d="M70 92L88 92L88 81.6L70 92.0z" fill="#aeb9c4" opacity=".85"/><path d="M88 92L106 92L106 73.0L88 81.6z" fill="#8d9aa8" opacity=".85"/><path d="M106 92L124 92L124 66.4L106 73.0z" fill="#c9d1d9" opacity=".85"/><path d="M124 92L142 92L142 61.7L124 66.4z" fill="#9aa7b4" opacity=".85"/><path d="M142 92L160 92L160 58.9L142 61.7z" fill="#6c7a89" opacity=".85"/><path d="M160 92L178 92L178 58.0L160 58.9z" fill="#dde3e9" opacity=".85"/><path d="M178 92L196 92L196 59.0L178 58.0z" fill="#aeb9c4" opacity=".85"/><path d="M196 92L214 92L214 61.9L196 59.0z" fill="#8d9aa8" opacity=".85"/><path d="M214 92L232 92L232 66.7L214 61.9z" fill="#c9d1d9" opacity=".85"/><path d="M232 92L250 92L250 73.5L232 66.7z" fill="#9aa7b4" opacity=".85"/><path d="M250 92L268 92L268 82.1L250 73.5z" fill="#6c7a89" opacity=".85"/><path d="M268 92L286 92L286 92.6L268 82.1z" fill="#dde3e9" opacity=".85"/><polyline points="70,92 79,86.5 88,92 97,77.1 106,92 115,69.5 124,92 133,63.8 142,92 151,60.1 160,92 169,58.2 178,92 187,58.3 196,92 205,60.2 214,92 223,64.1 232,92 241,69.9 250,92 259,77.5 268,92 277,87.1 286,92" fill="none" stroke="#28323f" stroke-width="1.1"/><path d="M70 92L70 92.0L76 88.3L82 84.8L88 81.6L94 78.5L100 75.7L106 73.0L112 70.6L118 68.4L124 66.4L130 64.6L136 63.1L142 61.7L148 60.6L154 59.6L160 58.9L166 58.4L172 58.1L178 58.0L184 58.1L190 58.5L196 59.0L202 59.8L208 60.7L214 61.9L220 63.3L226 64.9L232 66.7L238 68.8L244 71.0L250 73.5L256 76.1L262 79.0L268 82.1L274 85.4L280 88.9L286 92.6" fill="none" stroke="#28323f" stroke-width="2"/><rect x="62" y="91" width="232" height="4" fill="#28323f"/><path d="M110 95v6M178 95v6M246 95v6" stroke="#28323f" stroke-width="3"/></g><rect x="0" y="95" width="300" height="35" fill="url(#hr)"/><g clip-path="url(#hc)"><g transform="translate(0 190) scale(1 -1)" opacity=".25"><g fill="#28323f" opacity=".92">
 <path d="M34 92V74h42v18zM34 74h42v-4H34zM38 70v-4h4v4zM48 70v-4h4v4zM58 70v-4h4v4zM68 70v-4h4v4z"/>
 
 <rect x="92" y="62" width="12" height="30"/><rect x="106" y="52" width="14" height="40"/><rect x="122" y="68" width="10" height="24"/><rect x="140" y="46" width="3.5" height="46"/><rect x="141" y="42" width="1.5" height="4"/><path d="M138 46h7.5l-3.75-4z"/>
 <rect x="154" y="46" width="3.5" height="46"/><rect x="155" y="42" width="1.5" height="4"/><path d="M152 46h7.5l-3.75-4z"/>
 <path d="M142 92V76c0-8 14-8 14 0v16z"/><path d="M160 92V80h22v12zM164 80c0-8 14-8 14 0z"/><rect x="234" y="58" width="11" height="34"/><rect x="247" y="68" width="13" height="24"/><rect x="262" y="52" width="12" height="40"/><rect x="276" y="64" width="14" height="28"/>
 
-</g><g><path d="M70 92L88 92L88 81.6L70 92.0z" fill="#ff5a36" opacity=".85"/><path d="M88 92L106 92L106 73.0L88 81.6z" fill="#ffc93c" opacity=".85"/><path d="M106 92L124 92L124 66.4L106 73.0z" fill="#2ec4b6" opacity=".85"/><path d="M124 92L142 92L142 61.7L124 66.4z" fill="#ff8fab" opacity=".85"/><path d="M142 92L160 92L160 58.9L142 61.7z" fill="#7b5cff" opacity=".85"/><path d="M160 92L178 92L178 58.0L160 58.9z" fill="#ff9f1c" opacity=".85"/><path d="M178 92L196 92L196 59.0L178 58.0z" fill="#ff5a36" opacity=".85"/><path d="M196 92L214 92L214 61.9L196 59.0z" fill="#ffc93c" opacity=".85"/><path d="M214 92L232 92L232 66.7L214 61.9z" fill="#2ec4b6" opacity=".85"/><path d="M232 92L250 92L250 73.5L232 66.7z" fill="#ff8fab" opacity=".85"/><path d="M250 92L268 92L268 82.1L250 73.5z" fill="#7b5cff" opacity=".85"/><path d="M268 92L286 92L286 92.6L268 82.1z" fill="#ff9f1c" opacity=".85"/><polyline points="70,92 79,86.5 88,92 97,77.1 106,92 115,69.5 124,92 133,63.8 142,92 151,60.1 160,92 169,58.2 178,92 187,58.3 196,92 205,60.2 214,92 223,64.1 232,92 241,69.9 250,92 259,77.5 268,92 277,87.1 286,92" fill="none" stroke="#1a0b05" stroke-width="1.1"/><path d="M70 92L70 92.0L76 88.3L82 84.8L88 81.6L94 78.5L100 75.7L106 73.0L112 70.6L118 68.4L124 66.4L130 64.6L136 63.1L142 61.7L148 60.6L154 59.6L160 58.9L166 58.4L172 58.1L178 58.0L184 58.1L190 58.5L196 59.0L202 59.8L208 60.7L214 61.9L220 63.3L226 64.9L232 66.7L238 68.8L244 71.0L250 73.5L256 76.1L262 79.0L268 82.1L274 85.4L280 88.9L286 92.6" fill="none" stroke="#1a0b05" stroke-width="2"/><rect x="62" y="91" width="232" height="4" fill="#1a0b05"/><path d="M110 95v6M178 95v6M246 95v6" stroke="#1a0b05" stroke-width="3"/></g></g></g><g stroke="#ffe3c4" stroke-width="1" opacity=".5" stroke-linecap="round"><path d="M190 100h30M195 105h22M200 111h12M188 118h34"/></g><ellipse cx="205" cy="102" rx="14" ry="2" fill="#fff1c9" opacity=".5"/></svg></div>
+</g><g><path d="M70 92L88 92L88 81.6L70 92.0z" fill="#aeb9c4" opacity=".85"/><path d="M88 92L106 92L106 73.0L88 81.6z" fill="#8d9aa8" opacity=".85"/><path d="M106 92L124 92L124 66.4L106 73.0z" fill="#c9d1d9" opacity=".85"/><path d="M124 92L142 92L142 61.7L124 66.4z" fill="#9aa7b4" opacity=".85"/><path d="M142 92L160 92L160 58.9L142 61.7z" fill="#6c7a89" opacity=".85"/><path d="M160 92L178 92L178 58.0L160 58.9z" fill="#dde3e9" opacity=".85"/><path d="M178 92L196 92L196 59.0L178 58.0z" fill="#aeb9c4" opacity=".85"/><path d="M196 92L214 92L214 61.9L196 59.0z" fill="#8d9aa8" opacity=".85"/><path d="M214 92L232 92L232 66.7L214 61.9z" fill="#c9d1d9" opacity=".85"/><path d="M232 92L250 92L250 73.5L232 66.7z" fill="#9aa7b4" opacity=".85"/><path d="M250 92L268 92L268 82.1L250 73.5z" fill="#6c7a89" opacity=".85"/><path d="M268 92L286 92L286 92.6L268 82.1z" fill="#dde3e9" opacity=".85"/><polyline points="70,92 79,86.5 88,92 97,77.1 106,92 115,69.5 124,92 133,63.8 142,92 151,60.1 160,92 169,58.2 178,92 187,58.3 196,92 205,60.2 214,92 223,64.1 232,92 241,69.9 250,92 259,77.5 268,92 277,87.1 286,92" fill="none" stroke="#28323f" stroke-width="1.1"/><path d="M70 92L70 92.0L76 88.3L82 84.8L88 81.6L94 78.5L100 75.7L106 73.0L112 70.6L118 68.4L124 66.4L130 64.6L136 63.1L142 61.7L148 60.6L154 59.6L160 58.9L166 58.4L172 58.1L178 58.0L184 58.1L190 58.5L196 59.0L202 59.8L208 60.7L214 61.9L220 63.3L226 64.9L232 66.7L238 68.8L244 71.0L250 73.5L256 76.1L262 79.0L268 82.1L274 85.4L280 88.9L286 92.6" fill="none" stroke="#28323f" stroke-width="2"/><rect x="62" y="91" width="232" height="4" fill="#28323f"/><path d="M110 95v6M178 95v6M246 95v6" stroke="#28323f" stroke-width="3"/></g></g></g><g stroke="#dde3e9" stroke-width="1" opacity=".5" stroke-linecap="round"><path d="M190 100h30M195 105h22M200 111h12M188 118h34"/></g><ellipse cx="205" cy="102" rx="14" ry="2" fill="#f4f7fa" opacity=".5"/></svg></div>
       <details class="hiw">
         <summary>
           <h3>How AMD Mart Works</h3>
