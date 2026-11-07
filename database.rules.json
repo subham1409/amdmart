@@ -92,6 +92,14 @@
           ".write": "auth != null && ((data.parent().child('sellerId').val() === auth.uid && newData.val().matches(/^(accepted|rejected)$/)) || (data.parent().child('buyerId').val() === auth.uid && newData.val() === 'cancelled'))",
           ".validate": "newData.isString() && newData.val().matches(/^(pending|accepted|rejected|cancelled)$/) && (data.exists() || newData.val() === 'pending')"
         },
+        "adminStatus": {
+          ".write": "auth != null && root.child('admins').child(auth.uid).exists()",
+          ".validate": "newData.isString() && newData.val().matches(/^(pending|approved|rejected)$/) && (root.child('admins').child(auth.uid).exists() || newData.val() === 'pending')"
+        },
+        "adminUpdatedAt": {
+          ".write": "auth != null && root.child('admins').child(auth.uid).exists()",
+          ".validate": "newData.isNumber()"
+        },
         "createdAt": { ".validate": "newData.isNumber()" },
         "$other": { ".validate": false }
       }

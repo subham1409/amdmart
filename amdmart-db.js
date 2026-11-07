@@ -20,7 +20,17 @@ const uid = () => {
 };
 
 /* ---------------- AUTH + USERS ---------------- */
+// Indian mobile numbers: accepts "+91 98765 43210", "09876543210" etc. and returns the 10 digits, or "" if invalid.
+export function normPhone(p) {
+  let d = String(p || "").replace(/\D/g, "");
+  if (d.length === 12 && d.startsWith("91")) d = d.slice(2);
+  else if (d.length === 11 && d.startsWith("0")) d = d.slice(1);
+  return /^[6-9]\d{9}$/.test(d) ? d : "";
+}
 export async function register({ name, email, password, phone = "", college = "" }) {
+  const cleanPhone = normPhone(phone);
+  if (!cleanPhone) throw new Error("Please enter a valid 10-digit mobile number.");   // checked BEFORE creating the account
+  phone = cleanPhone;
   const cred = await createUserWithEmailAndPassword(auth, email, password);
   await updateProfile(cred.user, { displayName: name });
   const id = cred.user.uid;
@@ -56,6 +66,17 @@ export const saveLocationPref = (loc) =>
 export async function getLocationPref() {
   const s = await get(ref(db, `userPrivate/${uid()}/locationPref`));
   return s.exists() ? s.val() : null;
+}
+// Own mobile number (stored privately: owner + admin only). Returns "" when none is saved yet.
+export async function getMyPhone() {
+  const s = await get(ref(db, `userPrivate/${uid()}/phone`));
+  return s.exists() ? String(s.val() || "") : "";
+}
+export async function savePhone(phone) {
+  const p = normPhone(phone);
+  if (!p) throw new Error("Please enter a valid 10-digit mobile number.");
+  await set(ref(db, `userPrivate/${uid()}/phone`), p);
+  return p;
 }
 export async function getUser(id) {
   const s = await get(ref(db, `users/${id}`));
@@ -176,12 +197,14 @@ export const listenFavouriteIds = (cb) =>
 export async function sendRequest(product, message = "") {
   const me = uid();
   if (product.sellerId === me) throw new Error("You can't request your own product.");
+  if (!(await getMyPhone())) throw new Error("Please add your mobile number first.");
   const rid = push(ref(db, "requests")).key;
   // order matters: rules check the request exists before allowing the index entries
+  // status = seller's decision, adminStatus = admin's verification ("pending" | "approved" | "rejected")
   await set(ref(db, `requests/${rid}`), {
     productId: product.id, productTitle: product.title, buyerId: me,
     buyerName: auth.currentUser.displayName || "Student",
-    sellerId: product.sellerId, message, status: "pending", createdAt: Date.now()
+    sellerId: product.sellerId, message, status: "pending", adminStatus: "pending", createdAt: Date.now()
   });
   await set(ref(db, `userRequests/${me}/${rid}`), true);
   await set(ref(db, `userRequests/${product.sellerId}/${rid}`), true);
@@ -193,6 +216,13 @@ export async function sendRequest(product, message = "") {
 export async function setRequestStatus(rid, status, otherUid, title) {
   await set(ref(db, `requests/${rid}/status`), status);
   await notify(otherUid, "request", `Request ${status}`, title || "", { requestId: rid });
+}
+// Admin-only (rules enforce it): verify or reject a request, and tell both people.
+export async function setAdminStatus(rid, status, buyerId, sellerId, title = "") {
+  await update(ref(db, `requests/${rid}`), { adminStatus: status, adminUpdatedAt: Date.now() });
+  const word = status === "approved" ? "verified by admin" : "rejected by admin";
+  await Promise.all([buyerId, sellerId].filter(Boolean).map((u) =>
+    notify(u, "request", `Request ${word}`, title, { requestId: rid }).catch(() => {})));
 }
 // Real-time list of all requests I'm part of (as buyer or seller).
 export function listenMyRequests(cb) {

@@ -3,7 +3,8 @@ import { auth } from "./firebase.js";
 import {
   onUser, register, login, logout, isAdmin, getUser, listenCategories, listenProducts,
   addProduct, getProductImages, markSold, deleteProduct, toggleFavourite, listenFavouriteIds, sendRequest,
-  setRequestStatus, listenMyRequests, listenNotifications, markNotificationRead, saveLocationPref, getLocationPref
+  setRequestStatus, listenMyRequests, listenNotifications, markNotificationRead, saveLocationPref, getLocationPref,
+  getMyPhone, savePhone
 } from "./amdmart-db.js";
 
 const $ = (s) => document.querySelector(s);
@@ -208,12 +209,26 @@ function renderProducts() {
   const f = filtered();
   $("#grid").innerHTML = f.map(card).join("") || '<p class="empty">No products found.</p>';
 }
+// Live two-step tracker: seller decision (r.status) + admin verification (r.adminStatus). Updates by itself via the realtime listener.
+const SELLER_ST = { pending: ["Waiting for seller", "wait"], accepted: ["Seller accepted", "ok"], rejected: ["Seller rejected", "no"], cancelled: ["Cancelled by buyer", "no"] };
+const ADMIN_ST = { pending: ["Waiting for admin", "wait"], approved: ["Admin verified", "ok"], rejected: ["Admin rejected", "no"] };
+function tracker(r) {
+  const a = r.adminStatus || "pending";
+  const s = SELLER_ST[r.status] || SELLER_ST.pending, d = ADMIN_ST[a] || ADMIN_ST.pending;
+  const confirmed = r.status === "accepted" && a === "approved";
+  const closed = r.status === "rejected" || r.status === "cancelled" || a === "rejected";
+  const msg = confirmed ? "Both confirmed. AMD Mart will share the pickup details."
+    : closed ? "This request is closed." : "Waiting for confirmation…";
+  const step = (label, [txt, cls]) => `<div class="trk-s ${cls}"><i></i><div><small>${label}</small><b>${txt}</b></div></div>`;
+  return `<div class="trk">${step("Seller", s)}${step("Admin", d)}</div><p class="trk-m ${confirmed ? "ok" : closed ? "no" : ""}">${msg}</p>`;
+}
 function renderRequests() {
   if (!S.user) { $("#reqs").innerHTML = '<p class="empty">Log in to see your requests.</p>'; return; }
   $("#reqs").innerHTML = S.reqs.map((r) => {
     const seller = r.sellerId === S.user.uid;
-    return `<div class="row"><b>${esc(r.productTitle)}</b> <span class="badge">${r.status}</span>
+    return `<div class="row"><b>${esc(r.productTitle)}</b> <span class="badge">${seller ? "Selling" : "Buying"}</span>
       <div>${seller ? "From " + esc(r.buyerName) : "You requested"}${r.message ? ": " + esc(r.message) : ""}</div>
+      ${tracker(r)}
       ${r.status === "pending" ? `<div class="act">${seller
         ? `<button class="btn sm" data-st="accepted" data-r="${r.id}">Accept</button><button class="btn sm red" data-st="rejected" data-r="${r.id}">Reject</button>`
         : `<button class="btn sm ghost" data-st="cancelled" data-r="${r.id}">Cancel</button>`}</div>` : ""}</div>`;
@@ -246,7 +261,7 @@ const renderAll = () => {
 function authDialog(mode = "login") {
   const reg = mode === "register";
   open(`<h3>${reg ? "Create account" : "Login"}</h3><form id="auth-f">
-    ${reg ? '<input name="name" placeholder="Full name" required><input name="college" placeholder="College (e.g. LD College)"><input name="phone" placeholder="Phone (optional)">' : ""}
+    ${reg ? '<input name="name" placeholder="Full name" required><input name="college" placeholder="College (e.g. LD College)"><input name="phone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="Mobile number (required)" pattern="[0-9+ ]{10,15}" title="Enter a valid 10-digit mobile number" required>' : ""}
     <input name="email" type="email" placeholder="Email" required><input name="password" type="password" minlength="6" placeholder="Password (min 6)" required>
     <button class="btn">${reg ? "Sign up" : "Login"}</button></form>
     <p style="margin-top:10px;font-size:14px">${reg ? "Have an account?" : "New here?"} <a href="#" id="sw" style="color:var(--o)">${reg ? "Login" : "Sign up"}</a></p>`);
@@ -258,8 +273,21 @@ function authDialog(mode = "login") {
     $("#dlg").close(); toast("Welcome to AMD Mart!");
   });
 }
-function postDialog() {
+// Older accounts may have no number saved: ask for it before they post or send a request.
+function phoneDialog(onDone) {
+  open(`<h3>Add your mobile number</h3><p class="loc-sub">Required so AMD Mart can contact you about buying and selling.</p>
+    <form id="ph-f"><input name="phone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="10-digit mobile number" required>
+    <button class="btn">Save &amp; continue</button></form>`);
+  $("#ph-f").onsubmit = safe(async (e) => {
+    e.preventDefault();
+    await savePhone(e.target.phone.value);
+    $("#dlg").close(); toast("Number saved");
+    if (onDone) onDone();
+  });
+}
+async function postDialog() {
   if (!need()) return;
+  if (!(await getMyPhone())) return phoneDialog(postDialog);
   const cats = S.cats.filter((c) => c.id !== "hot-deals");
   if (!cats.length) return toast("No categories yet — ask admin to set them up.");
   open(`<h3>Post an Ad</h3><form id="post-f">
@@ -326,6 +354,7 @@ async function detail(id) {
     $("#req-f").onsubmit = safe(async (e) => {
       e.preventDefault();
       if (!need()) return;
+      if (!(await getMyPhone())) return phoneDialog(() => detail(id));
       await sendRequest(p, e.target.m.value); $("#dlg").close(); toast("Request sent to seller!"); show("requests");
     });
   }
@@ -363,7 +392,7 @@ document.addEventListener("click", safe(async (e) => {
   else if (t.id === "p-login") authDialog();
   else if (t.id === "p-logout") { await logout(); toast("Logged out"); }
 }));
-$("#fab").onclick = postDialog;
+$("#fab").onclick = safe(postDialog);
 $("#q-home").onfocus = () => { show("explore"); $("#q").focus(); };
 $("#bell").onclick = bellDialog;
 $("#fav-btn").onclick = favDialog;

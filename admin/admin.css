@@ -13,5 +13,5 @@ input{padding:10px;border:1px solid #ddd;border-radius:8px;font:inherit}
 .tabs{display:flex;gap:8px;margin-bottom:14px}.tabs button{background:#fff;color:var(--d);box-shadow:0 1px 4px #0002}.tabs .on{background:var(--o);color:#fff}
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.stats div{background:#fff;padding:14px;border-radius:12px;box-shadow:0 1px 4px #0001}.stats b{display:block;font-size:24px;color:var(--o)}
 table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:9px 8px;border-bottom:1px solid #eee;vertical-align:middle}th{background:#faf5f2}
-td button{margin-right:4px;padding:5px 10px;font-size:12px}.tag{padding:2px 8px;border-radius:10px;background:#ffece0;color:var(--o);font-size:12px}
+td button{margin-right:4px;padding:5px 10px;font-size:12px}button:disabled{opacity:.45;cursor:default}td a{color:var(--o);font-weight:600;text-decoration:none}td small{color:#777}.tag{padding:2px 8px;border-radius:10px;background:#ffece0;color:var(--o);font-size:12px}
 @media(max-width:700px){.stats{grid-template-columns:1fr 1fr}}
