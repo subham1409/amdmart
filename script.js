@@ -215,7 +215,17 @@ function renderProfile() {
     <h3 class="pad">Favourites</h3><div class="grid">${favs.map(card).join("") || '<p class="empty">No favourites yet.</p>'}</div>`;
 }
 function renderBell() { $("#dot").classList.toggle("hidden", !S.notifs.some((n) => !n.read)); }
-const renderAll = () => { renderCats(); renderProducts(); renderRequests(); if (S.view === "profile") renderProfile(); renderBell(); };
+function renderFavBtn() {
+  const n = S.favs.length, c = $("#fav-count");
+  c.textContent = n > 99 ? "99+" : n; c.classList.toggle("hidden", !n);
+  $("#fav-btn").classList.toggle("has", n > 0);
+}
+const favItems = () => S.products.filter((p) => S.favs.includes(p.id));
+const favListHtml = () => favItems().map(card).join("") || '<p class="empty">No liked products yet. Tap the heart on any product to save it here.</p>';
+const renderAll = () => {
+  renderCats(); renderProducts(); renderRequests(); if (S.view === "profile") renderProfile(); renderBell(); renderFavBtn();
+  const fl = $("#fav-list"); if (fl && $("#dlg").open) fl.innerHTML = favListHtml(); // keep open popup in sync
+};
 
 /* ---------- dialogs ---------- */
 function authDialog(mode = "login") {
@@ -291,6 +301,11 @@ function bellDialog() {
   open(`<h3>Notifications</h3><div class="list">${S.notifs.map((n) => `<div class="row" data-n="${n.id}" style="${n.read ? "opacity:.6" : ""}"><b>${esc(n.title)}</b><div>${esc(n.message)}</div></div>`).join("") || '<p class="empty">Nothing new.</p>'}</div>`);
 }
 
+function favDialog() {
+  if (!need()) return;
+  open(`<h3>Liked Products</h3><div id="fav-list" class="grid">${favListHtml()}</div>`);
+}
+
 /* ---------- events ---------- */
 document.addEventListener("click", safe(async (e) => {
   const t = e.target.closest("[data-v],[data-cat],[data-chip],[data-fav],[data-open],[data-st],[data-n],[data-loc],[data-area],[data-retry],#loc-gps,#p-login,#p-logout");
@@ -312,6 +327,7 @@ document.addEventListener("click", safe(async (e) => {
 $("#fab").onclick = postDialog;
 $("#q-home").onfocus = () => { show("explore"); $("#q").focus(); };
 $("#bell").onclick = bellDialog;
+$("#fav-btn").onclick = favDialog;
 $("#loc-btn").onclick = locDialog;
 $("#q").oninput = (e) => { S.q = e.target.value.trim().toLowerCase(); if (S.view !== "explore") show("explore"); renderProducts(); };
 
