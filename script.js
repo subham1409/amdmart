@@ -6,6 +6,7 @@ import {
   setRequestStatus, listenMyRequests, listenNotifications, markNotificationRead, saveLocationPref, getLocationPref,
   getMyPhone, savePhone, updateMyProfile, changeEmail, syncEmail
 } from "./amdmart-db.js";
+import { areaDistance } from "./distances.js";
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -62,7 +63,7 @@ const AREAS = [
   ["Vadaj", 23.072, 72.56], ["Sabarmati", 23.075, 72.58], ["Shahibaug", 23.054, 72.589],
   ["Sola", 23.078, 72.51], ["Science City", 23.075, 72.49], ["Motera", 23.1, 72.597],
   ["Naroda", 23.068, 72.654], ["Nikol", 23.043, 72.668], ["Vastral", 22.993, 72.656],
-  ["Isanpur", 22.977, 72.596], ["Ghuma", 23.003, 72.485], ["Sarkhej", 22.989, 72.493]
+  ["Isanpur", 22.977, 72.596], ["Ghuma", 23.003, 72.485], ["Sarkhej", 22.989, 72.493], ["Iscon", 23.0302, 72.5073]
 ].map(([name, lat, lng]) => ({ name, lat, lng }));
 const toRad = (d) => (d * Math.PI) / 180;
 function haversine(lat1, lng1, lat2, lng2) { // distance in metres
@@ -89,11 +90,24 @@ function nearbyProducts(list, loc) {
     .map((p) => {
       const same = sameName(p.area || p.location, loc.area);
       const d = hasLoc && validCoords(p.lat, p.lng) ? haversine(loc.lat, loc.lng, p.lat, p.lng) : null;
-      return { ...p, _same: same, _d: d };
+      const km = areaDistance(loc.area, p.area || p.location);
+      return { ...p, _same: same, _d: d, _dd: km != null ? km * 1000 : d };
     })
     .filter((p) => p._same || (p._d != null && p._d <= RADIUS_M))
     .sort((a, b) => (b._same - a._same) || ((a._d ?? 0) - (b._d ?? 0)));
 }
+// Approximate distance from the user's chosen area to the product's area (uses the saved table in distances.js)
+function distText(p) {
+  const to = p.area || p.location;
+  if (!S.loc) return "Choose your area to see distance";
+  if (sameName(S.loc.area, to)) return "Same area as you";
+  const km = areaDistance(S.loc.area, to);
+  if (km != null) return `≈ ${km.toFixed(1)} km from ${S.loc.area}`;
+  if (validCoords(S.loc.lat, S.loc.lng) && validCoords(p.lat, p.lng))
+    return `≈ ${(haversine(S.loc.lat, S.loc.lng, p.lat, p.lng) * 1.3 / 1000).toFixed(1)} km from ${S.loc.area}`;
+  return "Distance not available";
+}
+const condClass = (c) => /^new$/i.test(c) ? "c-new" : /like/i.test(c) ? "c-like" : "c-used";
 function nearestArea(lat, lng) {
   let best = null;
   for (const a of AREAS) { const d = haversine(lat, lng, a.lat, a.lng); if (!best || d < best.d) best = { ...a, d }; }
@@ -189,7 +203,7 @@ function card(p) {
     <button class="heart ${S.favs.includes(p.id) ? "on" : ""}" data-fav="${p.id}" aria-label="Favourite">${ic("heart")}</button></div>
     <div class="info"><div class="t">${esc(p.title)}</div>
     <div class="price">₹${Number(p.price).toLocaleString("en-IN")}${p.originalPrice > p.price ? `<s>₹${Number(p.originalPrice).toLocaleString("en-IN")}</s>` : ""}</div>
-    <div class="loc">${ic("pin")} ${esc(p.area || p.location || "Ahmedabad")}</div>${p._d != null ? `<div class="dist">${fmtDist(p._d)}</div>` : ""}</div></div>`;
+    <div class="loc">${ic("pin")} ${esc(p.area || p.location || "Ahmedabad")}</div>${(p._dd ?? p._d) != null ? `<div class="dist">${(p._dd ?? p._d) === 0 ? "Same area" : "≈ " + fmtDist(p._dd ?? p._d)}</div>` : ""}</div></div>`;
 }
 function renderCats() {
   $("#cats").innerHTML = S.cats.map((c) => `<button class="cat" data-cat="${c.id}"><i>${ic(ICONS[c.id] || "tag")}</i>${esc(c.name)}</button>`).join("");
@@ -386,8 +400,14 @@ async function detail(id) {
     <div class="dt-body">
     <h3>${esc(p.title)} ${p.verified ? '<span class="badge">Verified</span>' : ""}</h3>
     <div class="price" style="font-size:22px">₹${Number(p.price).toLocaleString("en-IN")}${p.originalPrice > p.price ? `<s>₹${p.originalPrice}</s>` : ""}</div>
-    <p class="loc">${ic("pin")} ${esc(p.location)} · ${esc(p.condition)} · Seller: <span id="d-seller">…</span></p>
-    <p style="margin:10px 0">${esc(p.description)}</p>
+    <div class="dt-info">
+      <div class="ir"><span>${ic("pin")}Location</span><b>${esc(p.area || p.location || "Ahmedabad")}</b></div>
+      <div class="ir"><span>${ic("pin")}Distance</span><b>${esc(distText(p))}</b></div>
+      <div class="ir"><span>${ic("check")}Condition</span><b><i class="cond ${condClass(p.condition || "Used")}">${esc(p.condition || "Used")}</i></b></div>
+      <div class="ir"><span>${ic("cap")}Seller's college</span><b id="d-college">…</b></div>
+    </div>
+    <h4 class="dt-h">Description</h4>
+    <p class="dt-desc">${esc(p.description) || "No description added."}</p>
     ${own ? `<div class="act" style="display:flex;gap:8px"><button class="btn" id="d-sold" ${p.status === "sold" ? "disabled" : ""}>Mark sold</button><button class="btn red" id="d-del">Delete</button></div>`
       : p.status === "sold" ? "<p><b>This item is sold.</b></p>"
       : `<form id="req-f"><textarea name="m" rows="2" maxlength="500" placeholder="Message to seller (optional)"></textarea><button class="btn">Request to Buy</button></form>`}
@@ -413,11 +433,11 @@ async function detail(id) {
       await sendRequest(p, e.target.m.value); $("#dlg").close(); toast("Request sent to seller!"); show("requests");
     });
   }
-  const [imgs, seller] = await Promise.all([getProductImages(id), getUser(p.sellerId)]);
+  const [imgs, seller] = await Promise.all([getProductImages(id), getUser(p.sellerId).catch(() => null)]);
   if (detailP !== p || !dlgEl.open || !$("#gal")) return;   // user already left or opened another item
   if (!imgs.length && p.thumb) imgs.push(p.thumb);
   $("#gal").innerHTML = slides(imgs); $("#gdots").innerHTML = dots(imgs.length);
-  $("#d-seller").textContent = (seller?.name || "Student") + (seller?.college ? ", " + seller.college : "");
+  $("#d-college").textContent = seller?.college || "Not shared";
 }
 function bellDialog() {
   if (!need()) return;

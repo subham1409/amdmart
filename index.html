@@ -272,6 +272,23 @@ form input:focus,form select:focus,form textarea:focus{outline:2px solid #6c7a89
 
 /* sticky top bar with soft shadow */
 .top{position:sticky;top:0;z-index:30;background:var(--bg);margin:0 -16px;padding:12px 16px 12px;box-shadow:0 3px 10px #3542521f}
+
+/* product detail: clear line-by-line info */
+.dt-info{margin:12px 0 4px;border:1px solid var(--line);border-radius:14px;background:#fff;overflow:hidden}
+.dt-info .ir{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 14px;font-size:15px}
+.dt-info .ir+.ir{border-top:1px solid var(--line)}
+.dt-info .ir span{display:flex;align-items:center;gap:6px;color:var(--g);font-size:13.5px;white-space:nowrap}
+.dt-info .ir span .ic{width:16px;height:16px}
+.dt-info .ir b{text-align:right;color:var(--ink);font-weight:700}
+.cond{font-style:normal;padding:3px 11px;border-radius:20px;font-size:13px}
+.c-new{background:#e2f5ea;color:#1f7a4a}.c-like{background:#e3eefb;color:#2a62a8}.c-used{background:#eceff3;color:#4a5868}
+.dt-h{margin:16px 0 4px;font-size:15px}
+.dt-desc{font-size:14.5px;line-height:1.5;margin:0 0 12px;white-space:pre-wrap}
+
+/* logo: drop its white background so it blends into the top bar */
+.brand img{mix-blend-mode:multiply;background:transparent;border-radius:0;box-shadow:none}
+/* breathing room between the sticky top bar and page content */
+main{padding-top:12px}
 </style>
 </head>
 <body>
