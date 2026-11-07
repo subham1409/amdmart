@@ -2,7 +2,8 @@
 import { auth, db } from "./firebase.js";
 import {
   createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut,
-  onAuthStateChanged, updateProfile
+  onAuthStateChanged, updateProfile,
+  EmailAuthProvider, reauthenticateWithCredential, verifyBeforeUpdateEmail
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import {
   ref, get, set, update, remove, push, query, orderByChild, equalTo,
@@ -53,6 +54,59 @@ export async function isAdmin() {
 export async function getUser(id) {
   const s = await get(ref(db, `users/${id}`));
   return s.exists() ? { id, ...s.val() } : null;
+}
+
+
+/* ---------------- PROFILE / PHONE / LOCATION / EMAIL ---------------- */
+const cleanPhone = (p) => {
+  const v = String(p || "").replace(/[\s-]/g, "");
+  if (!/^\+?[0-9]{10,15}$/.test(v)) throw new Error("Enter a valid mobile number (10 digits).");
+  return v;
+};
+export async function getMyPhone() {
+  const s = await get(ref(db, `userPrivate/${uid()}/phone`));
+  return s.exists() ? s.val() : "";
+}
+export async function savePhone(phone) {
+  const v = cleanPhone(phone);
+  await set(ref(db, `userPrivate/${uid()}/phone`), v);
+  return v;
+}
+// Returns { phone, college } (script.js stores it in S.me)
+export async function updateMyProfile({ name, phone, college = "" }) {
+  const id = uid();
+  name = String(name || "").trim();
+  if (!name) throw new Error("Name is required.");
+  const p = cleanPhone(phone);
+  const c = String(college || "").trim();
+  await update(ref(db), {
+    [`users/${id}/name`]: name,
+    [`users/${id}/college`]: c,
+    [`userPrivate/${id}/phone`]: p
+  });
+  await updateProfile(auth.currentUser, { displayName: name });
+  return { phone: p, college: c };
+}
+// Sends a verification link to the new address; the email changes only after the link is opened.
+export async function changeEmail(newEmail, password) {
+  const user = auth.currentUser;
+  if (!user) throw new Error("Please log in first.");
+  await reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email, password));
+  await verifyBeforeUpdateEmail(user, newEmail);
+}
+// After the user verified a new email, copy it into userPrivate so the database matches the account.
+export async function syncEmail() {
+  const user = auth.currentUser;
+  if (!user || !user.email) return;
+  const r = ref(db, `userPrivate/${user.uid}/email`);
+  if ((await get(r)).val() !== user.email) await set(r, user.email);
+}
+// Saved area (account-wide, private to the user): { area, lat, lng, src }
+export const saveLocationPref = (loc) =>
+  set(ref(db, `userPrivate/${uid()}/location`), { area: loc.area, lat: loc.lat, lng: loc.lng, src: loc.src || "manual" });
+export async function getLocationPref() {
+  const s = await get(ref(db, `userPrivate/${uid()}/location`));
+  return s.exists() ? s.val() : null;
 }
 
 /* ---------------- CATEGORIES ---------------- */
@@ -113,7 +167,10 @@ export async function addProduct(data, files = []) {
     title: data.title, description: data.description || "",
     price: Number(data.price), originalPrice: Number(data.originalPrice || data.price),
     category: data.category, condition: data.condition || "Used",
-    location: data.location || "", thumb: done[0]?.thumb || "", imageCount: full.length,
+    location: data.area || data.location || "",
+    area: data.area || data.location || "",
+    ...(Number.isFinite(Number(data.lat)) && Number.isFinite(Number(data.lng)) ? { lat: Number(data.lat), lng: Number(data.lng) } : {}),
+    thumb: done[0]?.thumb || "", imageCount: full.length,
     sellerId: me, verified: false, status: "active", createdAt: Date.now()
   });
   // product must exist first: the image rules check the product's owner. One write for all photos.
