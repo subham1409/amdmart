@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AMD Mart – Admin</title>
+<link rel="icon" href="../images/logo.svg">
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+<header><div class="brand"><img src="../images/logo.svg" alt=""><h1>AMD <span>Mart</span> Admin</h1></div><div><a href="../index.html">← Store</a> <button id="out" class="hidden">Logout</button></div></header>
+
+<section id="login" class="box hidden">
+  <h2>Admin Login</h2>
+  <form id="login-f"><input name="email" type="email" placeholder="Email" required><input name="password" type="password" placeholder="Password" required><button>Login</button></form>
+</section>
+<p id="denied" class="box hidden">⛔ This account is not an admin. Admins are added manually in the Firebase Console at <code>admins/&lt;uid&gt;: true</code>.</p>
+
+<main id="panel" class="hidden">
+  <nav class="tabs"><button data-t="products" class="on">Products</button><button data-t="requests">Requests</button><button data-t="users">Users</button><button data-t="categories">Categories</button></nav>
+  <div id="stats" class="stats"></div>
+  <div id="content" class="box"></div>
+</main>
+<script type="module" src="admin.js"></script>
+</body>
+</html>
