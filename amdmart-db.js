@@ -80,37 +80,44 @@ export async function seedCategories() {
 /* ---------------- PRODUCTS ---------------- */
 // Images are resized in the browser and stored as small JPEG data-URLs in the Realtime Database
 // (no Firebase Storage / billing needed). thumb lives on the product; full images in productImages/{pid}.
-function shrink(file, max, quality) {
+async function decode(file) {
+  if (window.createImageBitmap) { try { return await createImageBitmap(file); } catch (_) {} }
   return new Promise((resolve, reject) => {
     const img = new Image(), url = URL.createObjectURL(file);
-    img.onload = () => {
-      const k = Math.min(1, max / Math.max(img.width, img.height));
-      const c = document.createElement("canvas");
-      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
-      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
-      URL.revokeObjectURL(url);
-      resolve(c.toDataURL("image/jpeg", quality));
-    };
+    img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
     img.onerror = () => reject(new Error("Could not read that image."));
     img.src = url;
   });
+}
+function draw(src, max) {
+  const k = Math.min(1, max / Math.max(src.width, src.height));
+  const c = document.createElement("canvas");
+  c.width = Math.max(1, Math.round(src.width * k)); c.height = Math.max(1, Math.round(src.height * k));
+  c.getContext("2d").drawImage(src, 0, 0, c.width, c.height);
+  return c;
+}
+// Photos are shrunk in parallel (fast), then saved with just 2 database writes.
+async function prepare(file, wantThumb) {
+  const src = await decode(file);
+  const big = draw(src, 640);
+  if (src.close) src.close();
+  return { full: big.toDataURL("image/jpeg", 0.6), thumb: wantThumb ? draw(big, 280).toDataURL("image/jpeg", 0.65) : "" };
 }
 export async function addProduct(data, files = []) {
   const me = uid();
   const pid = push(ref(db, "products")).key;
   const picks = [...files].slice(0, 3);
-  const full = [];
-  for (const f of picks) full.push(await shrink(f, 800, 0.65));
-  const thumb = picks.length ? await shrink(picks[0], 360, 0.7) : "";
+  const done = await Promise.all(picks.map((f, i) => prepare(f, i === 0)));
+  const full = done.map((d) => d.full);
   await set(ref(db, `products/${pid}`), {
     title: data.title, description: data.description || "",
     price: Number(data.price), originalPrice: Number(data.originalPrice || data.price),
     category: data.category, condition: data.condition || "Used",
-    location: data.location || "", thumb, imageCount: full.length,
+    location: data.location || "", thumb: done[0]?.thumb || "", imageCount: full.length,
     sellerId: me, verified: false, status: "active", createdAt: Date.now()
   });
-  // product must exist first: the image rules check the product's owner
-  for (let i = 0; i < full.length; i++) await set(ref(db, `productImages/${pid}/${i}`), full[i]);
+  // product must exist first: the image rules check the product's owner. One write for all photos.
+  if (full.length) await update(ref(db, `productImages/${pid}`), Object.fromEntries(full.map((d, i) => [i, d])));
   return pid;
 }
 export async function getProductImages(pid) {

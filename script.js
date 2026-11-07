@@ -114,7 +114,7 @@ function postDialog() {
   $("#post-f").onsubmit = safe(async (e) => {
     e.preventDefault();
     const f = e.target, d = Object.fromEntries(new FormData(f));
-    $("#post-btn").disabled = true; $("#post-btn").textContent = "Uploading…";
+    $("#post-btn").disabled = true; $("#post-btn").textContent = "Compressing & saving…";
     try { await addProduct(d, [...f.images.files]); } finally { $("#post-btn")?.removeAttribute("disabled"); }
     $("#dlg").close(); toast("Ad published!");
   });
