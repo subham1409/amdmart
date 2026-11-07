@@ -2,7 +2,7 @@
 import { auth, db } from "./firebase.js";
 import {
   createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut,
-  onAuthStateChanged, updateProfile, reauthenticateWithCredential, EmailAuthProvider, verifyBeforeUpdateEmail
+  onAuthStateChanged, updateProfile
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import {
   ref, get, set, update, remove, push, query, orderByChild, equalTo,
@@ -20,17 +20,7 @@ const uid = () => {
 };
 
 /* ---------------- AUTH + USERS ---------------- */
-// Indian mobile numbers: accepts "+91 98765 43210", "09876543210" etc. and returns the 10 digits, or "" if invalid.
-export function normPhone(p) {
-  let d = String(p || "").replace(/\D/g, "");
-  if (d.length === 12 && d.startsWith("91")) d = d.slice(2);
-  else if (d.length === 11 && d.startsWith("0")) d = d.slice(1);
-  return /^[6-9]\d{9}$/.test(d) ? d : "";
-}
 export async function register({ name, email, password, phone = "", college = "" }) {
-  const cleanPhone = normPhone(phone);
-  if (!cleanPhone) throw new Error("Please enter a valid 10-digit mobile number.");   // checked BEFORE creating the account
-  phone = cleanPhone;
   const cred = await createUserWithEmailAndPassword(auth, email, password);
   await updateProfile(cred.user, { displayName: name });
   const id = cred.user.uid;
@@ -59,67 +49,6 @@ export const onUser = (cb) => onAuthStateChanged(auth, cb);
 export async function isAdmin() {
   if (!auth.currentUser) return false;
   return (await get(ref(db, `admins/${auth.currentUser.uid}`))).exists();
-}
-// Preferred area, stored privately (owner + admin only) as area name + approximate coordinates. Never a street address.
-export const saveLocationPref = (loc) =>
-  set(ref(db, `userPrivate/${uid()}/locationPref`), { area: loc.area, lat: loc.lat, lng: loc.lng, src: loc.src || "manual" });
-export async function getLocationPref() {
-  const s = await get(ref(db, `userPrivate/${uid()}/locationPref`));
-  return s.exists() ? s.val() : null;
-}
-// Own mobile number (stored privately: owner + admin only). Returns "" when none is saved yet.
-export async function getMyPhone() {
-  const s = await get(ref(db, `userPrivate/${uid()}/phone`));
-  return s.exists() ? String(s.val() || "") : "";
-}
-export async function savePhone(phone) {
-  const p = normPhone(phone);
-  if (!p) throw new Error("Please enter a valid 10-digit mobile number.");
-  await set(ref(db, `userPrivate/${uid()}/phone`), p);
-  return p;
-}
-// Edit own profile: name + college (public profile) and mobile number (private).
-export async function updateMyProfile({ name, college = "", phone }) {
-  const me = uid();
-  name = String(name || "").trim();
-  college = String(college || "").trim();
-  if (!name) throw new Error("Please enter your name.");
-  if (name.length > 60) throw new Error("Name is too long (max 60 characters).");
-  if (college.length > 80) throw new Error("College name is too long (max 80 characters).");
-  const p = normPhone(phone);
-  if (!p) throw new Error("Please enter a valid 10-digit mobile number.");
-  await updateProfile(auth.currentUser, { displayName: name });
-  const writes = {
-    [`users/${me}/name`]: name,
-    [`users/${me}/college`]: college,
-    [`userPrivate/${me}/phone`]: p
-  };
-  // Older accounts may have no profile record yet: the rules require createdAt on it.
-  if (!(await get(ref(db, `users/${me}`))).exists()) writes[`users/${me}/createdAt`] = Date.now();
-  await update(ref(db), writes);
-  return { name, college, phone: p };
-}
-// Email changes need the current password; Firebase then emails a link to the NEW address and only switches after it is opened.
-export async function changeEmail(newEmail, password) {
-  const u = auth.currentUser;
-  if (!u) throw new Error("Please log in first.");
-  newEmail = String(newEmail || "").trim().toLowerCase();
-  if (newEmail === String(u.email || "").toLowerCase()) throw new Error("That is already your email.");
-  try {
-    await reauthenticateWithCredential(u, EmailAuthProvider.credential(u.email, password));
-    await verifyBeforeUpdateEmail(u, newEmail);
-  } catch (e) {
-    const m = { "auth/wrong-password": "Current password is wrong.", "auth/invalid-credential": "Current password is wrong.",
-      "auth/email-already-in-use": "That email is already used by another account.", "auth/invalid-email": "Enter a valid email address.",
-      "auth/too-many-requests": "Too many attempts. Try again in a few minutes." }[e.code];
-    throw new Error(m || e.message);
-  }
-}
-// Keeps the admin-visible copy of the email in step with the login email (after a verified change).
-export async function syncEmail() {
-  const u = auth.currentUser; if (!u || !u.email) return;
-  const r = ref(db, `userPrivate/${u.uid}/email`);
-  if ((await get(r)).val() !== u.email) await set(r, u.email);
 }
 export async function getUser(id) {
   const s = await get(ref(db, `users/${id}`));
@@ -179,21 +108,16 @@ export async function addProduct(data, files = []) {
   const pid = push(ref(db, "products")).key;
   const picks = [...files].slice(0, 3);
   const done = await Promise.all(picks.map((f, i) => prepare(f, i === 0)));
-  // Approximate pickup area only (area name + the area's centre point), never a seller's exact address.
-  const hasGeo = data.area && Number.isFinite(Number(data.lat)) && Number.isFinite(Number(data.lng));
-  const geo = hasGeo ? { area: String(data.area), lat: Number(data.lat), lng: Number(data.lng) } : {};
   const full = done.map((d) => d.full);
-  const record = {
+  await set(ref(db, `products/${pid}`), {
     title: data.title, description: data.description || "",
     price: Number(data.price), originalPrice: Number(data.originalPrice || data.price),
     category: data.category, condition: data.condition || "Used",
-    location: data.area || data.location || "", ...geo, thumb: done[0]?.thumb || "", imageCount: full.length,
+    location: data.location || "", thumb: done[0]?.thumb || "", imageCount: full.length,
     sellerId: me, verified: false, status: "active", createdAt: Date.now()
-  };
-  // ONE database round trip: product + all photos together (rules updated to allow this; see database.rules.json).
-  const writes = { [`products/${pid}`]: record };
-  full.forEach((d, i) => { writes[`productImages/${pid}/${i}`] = d; });
-  await update(ref(db), writes);
+  });
+  // product must exist first: the image rules check the product's owner. One write for all photos.
+  if (full.length) await update(ref(db, `productImages/${pid}`), Object.fromEntries(full.map((d, i) => [i, d])));
   return pid;
 }
 export async function getProductImages(pid) {
@@ -209,16 +133,18 @@ export async function deleteProduct(pid) {
     const r = await fetch(`/api/products/${pid}`, { method: "DELETE", headers: { Authorization: "Bearer " + await auth.currentUser.getIdToken() } });
     if (r.ok) return;
   } catch (_) {}
-  await update(ref(db), { [`productImages/${pid}`]: null, [`products/${pid}`]: null });
+  // photos first (their rule needs the product to still exist); never block the delete if that fails
+  try { await remove(ref(db, `productImages/${pid}`)); } catch (_) {}
+  await remove(ref(db, `products/${pid}`));
 }
 // Real-time product feed. opts: { category, sellerId }. Returns an unsubscribe function.
-export function listenProducts(cb, opts = {}, onError) {
+export function listenProducts(cb, opts = {}) {
   let q = ref(db, "products");
   if (opts.sellerId) q = query(q, orderByChild("sellerId"), equalTo(opts.sellerId));
   else if (opts.category) q = query(q, orderByChild("category"), equalTo(opts.category));
   return onValue(q, (s) =>
     cb(toList(s).filter((p) => p.status === "active" || opts.sellerId)
-      .sort((a, b) => b.createdAt - a.createdAt)), onError);
+      .sort((a, b) => b.createdAt - a.createdAt)));
 }
 export async function getProduct(pid) {
   const s = await get(ref(db, `products/${pid}`));
@@ -240,14 +166,12 @@ export const listenFavouriteIds = (cb) =>
 export async function sendRequest(product, message = "") {
   const me = uid();
   if (product.sellerId === me) throw new Error("You can't request your own product.");
-  if (!(await getMyPhone())) throw new Error("Please add your mobile number first.");
   const rid = push(ref(db, "requests")).key;
   // order matters: rules check the request exists before allowing the index entries
-  // status = seller's decision, adminStatus = admin's verification ("pending" | "approved" | "rejected")
   await set(ref(db, `requests/${rid}`), {
     productId: product.id, productTitle: product.title, buyerId: me,
     buyerName: auth.currentUser.displayName || "Student",
-    sellerId: product.sellerId, message, status: "pending", adminStatus: "pending", createdAt: Date.now()
+    sellerId: product.sellerId, message, status: "pending", createdAt: Date.now()
   });
   await set(ref(db, `userRequests/${me}/${rid}`), true);
   await set(ref(db, `userRequests/${product.sellerId}/${rid}`), true);
@@ -259,13 +183,6 @@ export async function sendRequest(product, message = "") {
 export async function setRequestStatus(rid, status, otherUid, title) {
   await set(ref(db, `requests/${rid}/status`), status);
   await notify(otherUid, "request", `Request ${status}`, title || "", { requestId: rid });
-}
-// Admin-only (rules enforce it): verify or reject a request, and tell both people.
-export async function setAdminStatus(rid, status, buyerId, sellerId, title = "") {
-  await update(ref(db, `requests/${rid}`), { adminStatus: status, adminUpdatedAt: Date.now() });
-  const word = status === "approved" ? "verified by admin" : "rejected by admin";
-  await Promise.all([buyerId, sellerId].filter(Boolean).map((u) =>
-    notify(u, "request", `Request ${word}`, title, { requestId: rid }).catch(() => {})));
 }
 // Real-time list of all requests I'm part of (as buyer or seller).
 export function listenMyRequests(cb) {
