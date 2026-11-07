@@ -162,6 +162,15 @@ dialog.full .x{display:none}
 .trk-s.no{background:#fdecea}.trk-s.no i{background:#d33}
 .trk-m{margin-top:8px;font-size:12px;color:var(--g)}.trk-m.ok{color:#2e9e55;font-weight:600}.trk-m.no{color:#b3261e}
 @keyframes trkp{50%{opacity:.3;transform:scale(.8)}}
+/* profile card + edit dialog */
+.pf{display:flex;flex-direction:column;gap:2px;margin:2px 0 0;color:var(--g)}
+.fl{font-size:12px;color:var(--g);margin-bottom:-6px}
+.sep{height:1px;background:#e5dcd8;margin:16px 0 12px}
+dialog h4{margin-bottom:4px}
+/* floating WhatsApp chat button (bottom right, above the nav bar) */
+.wa{position:fixed;bottom:92px;right:max(14px,calc(50vw - 226px));width:52px;height:52px;border-radius:50%;background:#25d366;color:#fff;display:grid;place-items:center;box-shadow:0 4px 14px #0004;z-index:4;text-decoration:none;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.wa svg{width:30px;height:30px;fill:currentColor}
+.wa:active{transform:scale(.94)}
 </style>
 </head>
 <body>
@@ -270,6 +279,7 @@ dialog.full .x{display:none}
   </nav>
 </div>
 
+<a id="wa" class="wa hidden" href="https://wa.me/918849110467?text=Hi%20AMD%20Mart%2C%20I%20need%20help." target="_blank" rel="noopener" aria-label="Chat with us on WhatsApp" title="Chat on WhatsApp"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg></a>
 <dialog id="dlg"><button class="x" id="x" aria-label="Close">✕</button><div id="dlg-body"></div></dialog>
 <div id="toast" class="toast hidden"></div>
 <script type="module" src="script.js"></script>

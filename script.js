@@ -4,14 +4,14 @@ import {
   onUser, register, login, logout, isAdmin, getUser, listenCategories, listenProducts,
   addProduct, getProductImages, markSold, deleteProduct, toggleFavourite, listenFavouriteIds, sendRequest,
   setRequestStatus, listenMyRequests, listenNotifications, markNotificationRead, saveLocationPref, getLocationPref,
-  getMyPhone, savePhone
+  getMyPhone, savePhone, updateMyProfile, changeEmail, syncEmail
 } from "./amdmart-db.js";
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const ICONS = { iot: "cpu", books: "book", "shoes-clothes": "shoe", electronics: "laptop", hostel: "bed", services: "cap", traditional: "hanger", projects: "bag", others: "grid", "hot-deals": "flame" };
 const ic = (n, c = "") => `<svg class="ic ${c}"><use href="#i-${n}"/></svg>`;
-const S = { user: null, cats: [], products: [], mine: [], favs: [], reqs: [], notifs: [], cat: "", q: "", view: "home", admin: false, loc: null, loaded: false, loadErr: false };
+const S = { me: {}, user: null, cats: [], products: [], mine: [], favs: [], reqs: [], notifs: [], cat: "", q: "", view: "home", admin: false, loc: null, loaded: false, loadErr: false };
 let userUnsubs = [];
 let detailP = null;   // product currently open in the full-screen detail page
 let histPushed = false;
@@ -42,6 +42,7 @@ function show(v) {
   document.querySelectorAll(".view").forEach((e) => e.classList.add("hidden"));
   $("#v-" + v).classList.remove("hidden");
   document.querySelectorAll(".nav [data-v], .dnav [data-v]").forEach((b) => b.classList.toggle("on", b.dataset.v === v));
+  $("#wa").classList.toggle("hidden", v !== "profile");   // WhatsApp button only on the Profile page
   if (v === "profile") renderProfile();
   scrollTo(0, 0);
 }
@@ -240,8 +241,11 @@ function renderProfile() {
     return;
   }
   const favs = S.products.filter((p) => S.favs.includes(p.id));
-  $("#profile").innerHTML = `<div class="row" style="margin-top:12px"><h3>${esc(S.user.displayName || "Student")}</h3><small>${esc(S.user.email)}</small>
-    <div class="act">${S.admin ? '<a class="btn sm" href="admin/admin.html">Admin Panel</a>' : ""}<button class="btn sm ghost" id="p-logout">Logout</button></div></div>
+  $("#profile").innerHTML = `<div class="row" style="margin-top:12px"><h3>${esc(S.user.displayName || "Student")}</h3>
+    <div class="pf"><small>${esc(S.user.email)}</small>
+    <small>${S.me.phone ? "Phone: " + esc(S.me.phone) : "Phone: not added yet"}</small>
+    ${S.me.college ? `<small>${esc(S.me.college)}</small>` : ""}</div>
+    <div class="act"><button class="btn sm" id="p-edit">Edit profile</button>${S.admin ? '<a class="btn sm ghost" href="admin/admin.html">Admin Panel</a>' : ""}<button class="btn sm ghost" id="p-logout">Logout</button></div></div>
     <h3 class="pad">My Listings</h3><div class="grid">${S.mine.map(card).join("") || '<p class="empty">Nothing listed yet.</p>'}</div>
     <h3 class="pad">Favourites</h3><div class="grid">${favs.map(card).join("") || '<p class="empty">No favourites yet.</p>'}</div>`;
 }
@@ -273,6 +277,52 @@ function authDialog(mode = "login") {
     $("#dlg").close(); toast("Welcome to AMD Mart!");
   });
 }
+async function loadMe() {
+  const u = S.user; if (!u) return;
+  try {
+    const [phone, prof] = await Promise.all([getMyPhone(), getUser(u.uid)]);
+    if (S.user !== u) return;   // logged out / switched while loading
+    S.me = { phone, college: prof?.college || "" };
+  } catch (_) {}
+  if (S.view === "profile") renderProfile();
+}
+function editDialog() {
+  if (!need()) return;
+  open(`<h3>Edit profile</h3>
+    <form id="ep-f">
+      <label class="fl">Full name</label><input name="name" value="${esc(S.user.displayName || "")}" maxlength="60" required>
+      <label class="fl">Mobile number</label><input name="phone" type="tel" inputmode="numeric" value="${esc(S.me.phone || "")}" placeholder="10-digit mobile number" required>
+      <label class="fl">College (optional)</label><input name="college" value="${esc(S.me.college || "")}" maxlength="80" placeholder="e.g. LD College">
+      <button class="btn" id="ep-btn">Save changes</button>
+    </form>
+    <div class="sep"></div>
+    <h4>Change email</h4>
+    <p class="loc-sub">Current: ${esc(S.user.email)}. We email a verification link to the new address; it changes once you open it.</p>
+    <form id="em-f">
+      <input name="email" type="email" placeholder="New email" required>
+      <input name="pw" type="password" placeholder="Current password" autocomplete="current-password" required>
+      <button class="btn ghost" id="em-btn">Send verification link</button>
+    </form>`);
+  $("#ep-f").onsubmit = safe(async (e) => {
+    e.preventDefault();
+    const d = Object.fromEntries(new FormData(e.target));
+    $("#ep-btn").disabled = true;
+    try {
+      const r = await updateMyProfile(d);
+      S.me = { phone: r.phone, college: r.college };
+      $("#dlg").close(); toast("Profile updated"); renderAll();
+    } finally { $("#ep-btn")?.removeAttribute("disabled"); }
+  });
+  $("#em-f").onsubmit = safe(async (e) => {
+    e.preventDefault();
+    const d = Object.fromEntries(new FormData(e.target));
+    $("#em-btn").disabled = true;
+    try {
+      await changeEmail(d.email, d.pw);
+      $("#dlg").close(); toast("Verification link sent. Open it to finish the change.");
+    } finally { $("#em-btn")?.removeAttribute("disabled"); }
+  });
+}
 // Older accounts may have no number saved: ask for it before they post or send a request.
 function phoneDialog(onDone) {
   open(`<h3>Add your mobile number</h3><p class="loc-sub">Required so AMD Mart can contact you about buying and selling.</p>
@@ -280,7 +330,7 @@ function phoneDialog(onDone) {
     <button class="btn">Save &amp; continue</button></form>`);
   $("#ph-f").onsubmit = safe(async (e) => {
     e.preventDefault();
-    await savePhone(e.target.phone.value);
+    S.me = { ...S.me, phone: await savePhone(e.target.phone.value) };
     $("#dlg").close(); toast("Number saved");
     if (onDone) onDone();
   });
@@ -376,7 +426,7 @@ function favDialog() {
 
 /* ---------- events ---------- */
 document.addEventListener("click", safe(async (e) => {
-  const t = e.target.closest("[data-v],[data-cat],[data-chip],[data-fav],[data-open],[data-st],[data-n],[data-loc],[data-area],[data-retry],#loc-gps,#p-login,#p-logout");
+  const t = e.target.closest("[data-v],[data-cat],[data-chip],[data-fav],[data-open],[data-st],[data-n],[data-loc],[data-area],[data-retry],#loc-gps,#p-login,#p-logout,#p-edit");
   if (!t) return;
   if (t.dataset.v) { e.preventDefault(); show(t.dataset.v); }
   else if (t.dataset.cat) { S.cat = t.dataset.cat; renderCats(); renderProducts(); show("explore"); }
@@ -390,6 +440,7 @@ document.addEventListener("click", safe(async (e) => {
   else if (t.dataset.retry !== undefined) startProducts();
   else if (t.id === "loc-gps") await useGps();
   else if (t.id === "p-login") authDialog();
+  else if (t.id === "p-edit") editDialog();
   else if (t.id === "p-logout") { await logout(); toast("Logged out"); }
 }));
 $("#fab").onclick = safe(postDialog);
@@ -412,9 +463,11 @@ renderLoc();
 
 onUser(async (u) => {
   userUnsubs.forEach((f) => f()); userUnsubs = [];
-  S.user = u; S.favs = []; S.mine = []; S.reqs = []; S.notifs = []; S.admin = false;
+  S.user = u; S.favs = []; S.mine = []; S.reqs = []; S.notifs = []; S.admin = false; S.me = {};
   initLocation(u);
   if (u) {
+    loadMe();
+    syncEmail().catch(() => {});
     userUnsubs.push(
       listenFavouriteIds((ids) => { S.favs = ids; renderAll(); }),
       listenProducts((p) => { S.mine = p; renderAll(); }, { sellerId: u.uid }),

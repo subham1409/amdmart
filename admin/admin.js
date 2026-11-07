@@ -12,6 +12,24 @@ let tab = "products", started = false;
 const list = (snap) => { const a = []; snap.forEach((c) => { a.push({ id: c.key, ...c.val() }); }); return a; };
 const run = (fn) => async (...a) => { try { await fn(...a); } catch (e) { alert(e.message); } };
 
+// Fallback lookup: if someone isn't in the bulk users list, fetch their profile directly (users/<uid> + userPrivate/<uid>).
+const person = {};
+async function loadPerson(id) {
+  person[id] = { id, loading: true };
+  const u = { id };
+  try { Object.assign(u, (await get(ref(db, `users/${id}`))).val() || {}); } catch (e) { u.err = e.message; }
+  try { u.email = (await get(ref(db, `userPrivate/${id}/email`))).val(); } catch (_) {}
+  try { u.phone = (await get(ref(db, `userPrivate/${id}/phone`))).val(); } catch (_) {}
+  person[id] = u; draw();
+}
+function userOf(id) {
+  if (!id) return {};
+  const u = D.users.find((x) => x.id === id) || person[id];
+  if (!u) loadPerson(id);
+  return u || { id, loading: true };
+}
+const nameOf = (id, fallback) => { const u = userOf(id); return u.name || fallback || (u.loading ? "Loading…" : "No profile (" + id.slice(0, 6) + ")"); };
+
 function start() {
   if (started) return; started = true;
   onValue(ref(db, "products"), (s) => { D.products = list(s); draw(); });
@@ -30,7 +48,7 @@ function start() {
 function draw() {
   $("#stats").innerHTML = ["products", "requests", "users", "categories"]
     .map((k) => `<div><b>${D[k].length}</b>${k}</div>`).join("");
-  const name = (id) => D.users.find((u) => u.id === id)?.name || id.slice(0, 6);
+  const name = (id) => nameOf(id);
   const waiting = D.requests.filter((r) => (r.adminStatus || "pending") === "pending" && r.status !== "cancelled").length;
   const rt = document.querySelector('.tabs [data-t="requests"]'); if (rt) rt.textContent = waiting ? `Requests (${waiting} new)` : "Requests";
   let h = "";
@@ -40,8 +58,8 @@ function draw() {
       <td>${p.verified ? "✔" : "—"}</td><td><button data-ver="${p.id}" data-val="${!p.verified}">${p.verified ? "Unverify" : "Verify"}</button><button class="red" data-delp="${p.id}">Delete</button></td></tr>`).join("")}</table>`;
   } else if (tab === "requests") {
     const who = (id, fallback) => {
-      const u = D.users.find((x) => x.id === id) || {};
-      return `<b>${esc(u.name || fallback || id.slice(0, 6))}</b><br>${u.phone ? `<a href="tel:${esc(u.phone)}">${esc(u.phone)}</a>` : '<span class="tag">No number</span>'}`
+      const u = userOf(id);
+      return `<b>${esc(nameOf(id, fallback))}</b><br>${u.phone ? `<a href="tel:${esc(u.phone)}">${esc(u.phone)}</a>` : '<span class="tag">No number</span>'}`
         + (u.email ? `<br><small>${esc(u.email)}</small>` : "") + (u.college ? `<br><small>${esc(u.college)}</small>` : "");
     };
     const sellerSt = { pending: "Pending", accepted: "Accepted", rejected: "Rejected", cancelled: "Cancelled" };

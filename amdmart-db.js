@@ -2,7 +2,7 @@
 import { auth, db } from "./firebase.js";
 import {
   createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut,
-  onAuthStateChanged, updateProfile
+  onAuthStateChanged, updateProfile, reauthenticateWithCredential, EmailAuthProvider, verifyBeforeUpdateEmail
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import {
   ref, get, set, update, remove, push, query, orderByChild, equalTo,
@@ -77,6 +77,49 @@ export async function savePhone(phone) {
   if (!p) throw new Error("Please enter a valid 10-digit mobile number.");
   await set(ref(db, `userPrivate/${uid()}/phone`), p);
   return p;
+}
+// Edit own profile: name + college (public profile) and mobile number (private).
+export async function updateMyProfile({ name, college = "", phone }) {
+  const me = uid();
+  name = String(name || "").trim();
+  college = String(college || "").trim();
+  if (!name) throw new Error("Please enter your name.");
+  if (name.length > 60) throw new Error("Name is too long (max 60 characters).");
+  if (college.length > 80) throw new Error("College name is too long (max 80 characters).");
+  const p = normPhone(phone);
+  if (!p) throw new Error("Please enter a valid 10-digit mobile number.");
+  await updateProfile(auth.currentUser, { displayName: name });
+  const writes = {
+    [`users/${me}/name`]: name,
+    [`users/${me}/college`]: college,
+    [`userPrivate/${me}/phone`]: p
+  };
+  // Older accounts may have no profile record yet: the rules require createdAt on it.
+  if (!(await get(ref(db, `users/${me}`))).exists()) writes[`users/${me}/createdAt`] = Date.now();
+  await update(ref(db), writes);
+  return { name, college, phone: p };
+}
+// Email changes need the current password; Firebase then emails a link to the NEW address and only switches after it is opened.
+export async function changeEmail(newEmail, password) {
+  const u = auth.currentUser;
+  if (!u) throw new Error("Please log in first.");
+  newEmail = String(newEmail || "").trim().toLowerCase();
+  if (newEmail === String(u.email || "").toLowerCase()) throw new Error("That is already your email.");
+  try {
+    await reauthenticateWithCredential(u, EmailAuthProvider.credential(u.email, password));
+    await verifyBeforeUpdateEmail(u, newEmail);
+  } catch (e) {
+    const m = { "auth/wrong-password": "Current password is wrong.", "auth/invalid-credential": "Current password is wrong.",
+      "auth/email-already-in-use": "That email is already used by another account.", "auth/invalid-email": "Enter a valid email address.",
+      "auth/too-many-requests": "Too many attempts. Try again in a few minutes." }[e.code];
+    throw new Error(m || e.message);
+  }
+}
+// Keeps the admin-visible copy of the email in step with the login email (after a verified change).
+export async function syncEmail() {
+  const u = auth.currentUser; if (!u || !u.email) return;
+  const r = ref(db, `userPrivate/${u.uid}/email`);
+  if ((await get(r)).val() !== u.email) await set(r, u.email);
 }
 export async function getUser(id) {
   const s = await get(ref(db, `users/${id}`));
