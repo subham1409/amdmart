@@ -53,9 +53,9 @@ function draw() {
   const rt = document.querySelector('.tabs [data-t="requests"]'); if (rt) rt.textContent = waiting ? `Requests (${waiting} new)` : "Requests";
   let h = "";
   if (tab === "products") {
-    h = `<table><tr><th>Title</th><th>Price</th><th>Seller</th><th>Status</th><th>Verified</th><th></th></tr>${D.products.map((p) =>
-      `<tr><td>${esc(p.title)}</td><td>₹${p.price}</td><td>${esc(name(p.sellerId))}</td><td><span class="tag">${p.status}</span></td>
-      <td>${p.verified ? "✔" : "—"}</td><td><button data-ver="${p.id}" data-val="${!p.verified}">${p.verified ? "Unverify" : "Verify"}</button><button class="red" data-delp="${p.id}">Delete</button></td></tr>`).join("")}</table>`;
+    h = `<table><tr><th>Title</th><th>Price</th><th>Category</th><th>Seller</th><th>Status</th><th>Verified</th><th></th></tr>${D.products.map((p) =>
+      `<tr><td>${esc(p.title)}</td><td>₹${p.price}${p.originalPrice && p.originalPrice !== p.price ? `<br><small>MRP ₹${p.originalPrice}</small>` : ""}</td><td>${esc((D.categories.find((c) => c.id === p.category) || {}).name || p.category)}</td><td>${esc(name(p.sellerId))}</td><td><span class="tag">${p.status}</span></td>
+      <td>${p.verified ? "✔" : "—"}</td><td><button class="edit" data-editp="${p.id}">Edit</button><button data-ver="${p.id}" data-val="${!p.verified}">${p.verified ? "Unverify" : "Verify"}</button><button class="red" data-delp="${p.id}">Delete</button></td></tr>`).join("")}</table>`;
   } else if (tab === "requests") {
     const who = (id, fallback) => {
       const u = userOf(id);
@@ -85,10 +85,56 @@ function draw() {
   $("#content").innerHTML = h;
 }
 
+/* ---------- edit product (admin) ---------- */
+const CONDITIONS = ["New", "Like New", "Used"];
+let editId = null, editBase = 0;
+const rupee = (n) => "₹" + (Math.round(n * 100) / 100).toLocaleString("en-IN");
+function openEdit(id) {
+  const p = D.products.find((x) => x.id === id); if (!p) return;
+  const f = $("#ed-f"); editId = id; editBase = Number(p.price) || 0;
+  f.elements.title.value = p.title || ""; f.price.value = p.price ?? ""; f.originalPrice.value = p.originalPrice ?? "";
+  f.location.value = p.area || p.location || ""; f.description.value = p.description || "";
+  f.status.value = p.status === "sold" ? "sold" : "active"; f.verified.checked = !!p.verified;
+  const cats = D.categories.some((c) => c.id === p.category) ? D.categories : [...D.categories, { id: p.category, name: p.category }];
+  f.category.innerHTML = cats.map((c) => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join(""); f.category.value = p.category;
+  const conds = CONDITIONS.includes(p.condition) || !p.condition ? CONDITIONS : [...CONDITIONS, p.condition];
+  f.condition.innerHTML = conds.map((c) => `<option>${esc(c)}</option>`).join(""); f.condition.value = p.condition || "Used";
+  f.cval.value = ""; $("#ed-base").textContent = rupee(editBase); $("#ed-prev").textContent = "";
+  $("#ed").showModal();
+}
+function applyCommission() {
+  const f = $("#ed-f"), v = Number(f.cval.value);
+  if (!(v >= 0) || f.cval.value === "") return alert("Enter the commission first.");
+  const add = f.ctype.value === "pct" ? editBase * v / 100 : v;
+  const price = Math.round(editBase + add);
+  f.price.value = price;
+  $("#ed-prev").textContent = `Buyer pays ${rupee(price)} · seller gets ${rupee(editBase)} · your commission ${rupee(price - editBase)}`;
+}
+async function saveEdit(f) {
+  const p = D.products.find((x) => x.id === editId); if (!p) throw new Error("Product not found.");
+  const title = f.elements.title.value.trim(), price = Number(f.price.value);
+  if (!title) throw new Error("Title is required.");
+  if (f.price.value === "" || !(price >= 0) || price > 10000000) throw new Error("Enter a valid price.");
+  const mrp = f.originalPrice.value === "" ? price : Number(f.originalPrice.value);
+  if (!(mrp >= 0)) throw new Error("Enter a valid original price.");
+  const area = f.location.value.trim().slice(0, 100);
+  const upd = {
+    title, price, originalPrice: mrp, category: f.category.value, condition: f.condition.value,
+    description: f.description.value.trim(), location: area, area, status: f.status.value,
+    verified: f.verified.checked, updatedAt: Date.now()
+  };
+  if (area !== (p.area || p.location || "")) { upd.lat = null; upd.lng = null; }   // old coordinates no longer match the new area
+  await update(ref(db, `products/${editId}`), upd);
+  $("#ed").close();
+}
+
 document.addEventListener("click", run(async (e) => {
   const t = e.target.closest("button"); if (!t) return;
   if (t.dataset.t) { tab = t.dataset.t; document.querySelectorAll(".tabs button").forEach((b) => b.classList.toggle("on", b === t)); draw(); }
   else if (t.dataset.ver) await verifyProduct(t.dataset.ver, t.dataset.val === "true");
+  else if (t.dataset.editp) openEdit(t.dataset.editp);
+  else if (t.id === "ed-cancel") $("#ed").close();
+  else if (t.id === "ed-apply") applyCommission();
   else if (t.dataset.delp) { if (confirm("Delete this product?")) await update(ref(db), { [`products/${t.dataset.delp}`]: null, [`productImages/${t.dataset.delp}`]: null }); }
   else if (t.dataset.areq) {
     const r = D.requests.find((x) => x.id === t.dataset.areq);
@@ -102,6 +148,7 @@ document.addEventListener("click", run(async (e) => {
 document.addEventListener("submit", run(async (e) => {
   e.preventDefault();
   if (e.target.id === "login-f") { const d = Object.fromEntries(new FormData(e.target)); await login(d.email, d.password); }
+  if (e.target.id === "ed-f") await saveEdit(e.target);
   if (e.target.id === "cat-f") {
     const name = e.target.name.value.trim();
     const id = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");

@@ -23,3 +23,16 @@ button{background:linear-gradient(135deg,#6c7a89,#354252)}
 td a,.stats b{color:#354252}
 header{background:linear-gradient(135deg,#354252,#4b5b6e)}
 .box,.stats div{box-shadow:0 4px 16px #35425214}
+/* ===== edit product dialog ===== */
+dialog#ed{margin:auto;border:0;border-radius:16px;padding:20px;width:min(94vw,460px);max-height:92vh;overflow:auto;box-shadow:0 20px 60px #0004}
+dialog#ed::backdrop{background:#2a344280}
+#ed-f{margin-top:0;gap:10px}#ed-f h2{margin-bottom:2px}
+#ed-f label{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600;color:var(--o)}
+#ed-f input,#ed-f select,#ed-f textarea{padding:10px;border:1px solid #ddd;border-radius:8px;font:inherit;color:var(--d);background:#fff;width:100%}
+#ed-f textarea{resize:vertical}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.comm{background:#f3f6f8;border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px;font-size:13px}
+.comm small{color:#555;min-height:16px}
+#ed-f label.chk{flex-direction:row;align-items:center;gap:8px;align-self:end;padding-bottom:10px}#ed-f label.chk input{width:auto}
+.acts{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}
+td button.edit{background:linear-gradient(135deg,#4b7bd1,#2d4f94)}

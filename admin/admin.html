@@ -21,6 +21,38 @@
   <div id="stats" class="stats"></div>
   <div id="content" class="box"></div>
 </main>
+
+<dialog id="ed">
+  <form id="ed-f">
+    <h2>Edit product</h2>
+    <label>Title<input name="title" maxlength="100" required></label>
+    <div class="row2">
+      <label>Listed price (₹)<input name="price" type="number" min="0" max="10000000" step="1" required></label>
+      <label>Original price / MRP (₹)<input name="originalPrice" type="number" min="0" step="1"></label>
+    </div>
+    <div class="comm">
+      <b>Commission</b>
+      <span>Seller's price: <strong id="ed-base">₹0</strong></span>
+      <div class="row2">
+        <select name="ctype"><option value="pct">% of seller's price</option><option value="flat">Flat ₹</option></select>
+        <input name="cval" type="number" min="0" step="0.5" placeholder="e.g. 10">
+      </div>
+      <button type="button" id="ed-apply" class="gray">Apply to listed price</button>
+      <small id="ed-prev"></small>
+    </div>
+    <div class="row2">
+      <label>Category<select name="category" required></select></label>
+      <label>Condition<select name="condition"></select></label>
+    </div>
+    <label>Area / location<input name="location" maxlength="100"></label>
+    <label>Description<textarea name="description" rows="3" maxlength="2000"></textarea></label>
+    <div class="row2">
+      <label>Status<select name="status"><option value="active">active</option><option value="sold">sold</option></select></label>
+      <label class="chk"><input name="verified" type="checkbox"> Verified</label>
+    </div>
+    <div class="acts"><button type="button" class="gray" id="ed-cancel">Cancel</button><button>Save changes</button></div>
+  </form>
+</dialog>
 <script type="module" src="admin.js"></script>
 </body>
 </html>

@@ -217,6 +217,14 @@ export async function getProduct(pid) {
 // Admin-only (rules enforce it)
 export const verifyProduct = (pid, v = true) => update(ref(db, `products/${pid}`), { verified: v });
 
+// Admin-only (rules enforce it): verify / reject a buying request and tell both people.
+export async function setAdminStatus(rid, status, buyerId, sellerId, title) {
+  await update(ref(db, `requests/${rid}`), { adminStatus: status, adminUpdatedAt: Date.now() });
+  const word = status === "approved" ? "verified" : status === "rejected" ? "rejected" : status;
+  await Promise.all([...new Set([buyerId, sellerId].filter(Boolean))].map((u) =>
+    notify(u, "request", `Request ${word} by admin`, title || "", { requestId: rid })));
+}
+
 /* ---------------- FAVOURITES ---------------- */
 export async function toggleFavourite(pid) {
   const r = ref(db, `favourites/${uid()}/${pid}`);
