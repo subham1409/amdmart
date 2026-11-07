@@ -37,9 +37,9 @@ button{cursor:pointer;border:0;background:none;color:inherit}
 .search{display:flex;align-items:center;gap:10px;width:100%;padding:0 18px;border-radius:30px;background:#f1e9e6;box-shadow:inset 0 1px 3px #0002;margin-bottom:16px;color:var(--g)}
 .search input{border:0;background:none;outline:none;padding:15px 0;width:100%;color:var(--d)}
 
-.cats{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:22px}
-.cat{background:var(--o2);border-radius:16px;padding:12px 2px 10px;text-align:center;font-size:12px;font-weight:500;min-height:84px;display:flex;flex-direction:column;align-items:center;gap:6px}
-.cat i{color:var(--o);display:grid;place-items:center}.cat .ic{width:30px;height:30px}
+.cats{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:18px}
+.cat{background:var(--o2);border-radius:14px;padding:8px 2px;text-align:center;font-size:11px;line-height:1.15;font-weight:500;min-height:66px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;overflow-wrap:anywhere}
+.cat i{color:var(--o);display:grid;place-items:center}.cat .ic{width:23px;height:23px}
 .sec-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
 .sec-h h3{display:flex;align-items:center;gap:6px}.sec-h a{color:var(--o);font-weight:600;text-decoration:none}
 
@@ -111,6 +111,31 @@ button,a,.area,.cat,.card{touch-action:manipulation;-webkit-tap-highlight-color:
 .dlg-poly{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:100;background:#fff;box-shadow:0 0 0 100vmax #0008}
 .dlg-poly:not([open]){display:none}
 /* liked products button in top bar */
+/* How AMD Mart works */
+.hiw{background:#fff;border:1px solid #f26a0f1f;border-radius:var(--r);box-shadow:0 2px 10px #0001;padding:14px 14px 12px;margin:0 0 16px}
+.hiw h3{font-size:17px;line-height:1.2}
+.hiw summary{list-style:none;cursor:pointer;display:block;-webkit-tap-highlight-color:transparent}
+.hiw summary::-webkit-details-marker{display:none}
+.hiw-sub{font-size:12.5px;color:var(--o);font-weight:600;margin:2px 0 9px}
+.hiw-tap{display:inline-flex;align-items:center;gap:4px;background:var(--o2);color:var(--o);font-size:12px;font-weight:600;padding:5px 10px 5px 12px;border-radius:20px}
+.hiw-tap .ic{width:15px;height:15px;stroke-width:2.4;transition:transform .2s}
+.hiw .t-close,.hiw[open] .t-open{display:none}
+.hiw[open] .t-close{display:inline}
+.hiw[open] .hiw-tap .ic{transform:rotate(180deg)}
+.hiw[open] .hiw-steps{margin-top:14px}
+.hiw-steps{list-style:none}
+.hiw-steps li{position:relative;display:flex;gap:12px;align-items:flex-start;padding-bottom:16px}
+.hiw-steps li:last-child{padding-bottom:0}
+.hiw-i{position:relative;flex:none;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;color:#fff;background:linear-gradient(135deg,#ff8a3d,var(--o));box-shadow:0 3px 8px #f26a0f55}
+.hiw-i .ic{width:19px;height:19px;stroke-width:2}
+.hiw-i b{position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:50%;background:var(--d);color:#fff;font-size:10px;line-height:16px;text-align:center;border:1.5px solid #fff}
+.hiw-steps li:not(:last-child)::before{content:"";position:absolute;left:18px;top:42px;bottom:9px;border-left:2px dashed #f26a0f66}
+.hiw-steps li:not(:last-child)::after{content:"";position:absolute;left:14.5px;bottom:5px;width:7px;height:7px;border-right:2px solid var(--o);border-bottom:2px solid var(--o);transform:rotate(45deg)}
+.hiw-steps h4{font-size:13.5px;line-height:1.25;padding-top:2px}
+.hiw-steps p{font-size:12px;line-height:1.4;color:var(--g);margin-top:2px}
+.hiw-note{margin-top:12px;background:var(--o2);border-radius:12px;padding:9px 12px;font-size:12px;line-height:1.4}
+.hiw-note b{color:var(--o)}
+.hiw-note ul{margin:4px 0 0 16px}.hiw-note li{margin-top:3px}.hiw-note li::marker{color:var(--o)}
 </style>
 </head>
 <body>
@@ -137,6 +162,9 @@ button,a,.area,.cat,.card{touch-action:manipulation;-webkit-tap-highlight-color:
 <symbol id="i-tag" viewBox="0 0 24 24"><path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.3"/></symbol>
 <symbol id="i-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
 <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="2.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></symbol>
+<symbol id="i-send" viewBox="0 0 24 24"><path d="M21 3L10 14"/><path d="M21 3l-7 18-4-7-7-4z"/></symbol>
+<symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 4.5-3.2 8-8 9-4.8-1-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/></symbol>
 <symbol id="i-amd" viewBox="0 0 160 110"><circle cx="80" cy="48" r="36"/><circle cx="80" cy="48" r="31"/><path d="M80 80V24M80 64C70 62 64 55 62 46M80 64C90 62 96 55 98 46M80 53C72 51 68 43 69 33M80 53C88 51 92 43 91 33M80 72C74 74 70 72 68 67M80 72C86 74 90 72 92 67"/><circle cx="62" cy="43.5" r="2.5"/><circle cx="98" cy="43.5" r="2.5"/><circle cx="69" cy="30.5" r="2.5"/><circle cx="91" cy="30.5" r="2.5"/><circle cx="80" cy="21.5" r="2.5"/><path d="M4 100h152M16 100V42M24 100V42M14 42h12M14 62h12M16 42c0-6 8-6 8 0M20 36v-7M136 100V42M144 100V42M134 42h12M134 62h12M136 42c0-6 8-6 8 0M140 36v-7M44 100v-6h72v6"/></symbol>
 <symbol id="i-palace" viewBox="0 0 24 24"><path d="M2 21h20M4 21V11h16v10M12 2v3M8.5 11c0-3.5 1.6-6 3.5-6s3.5 2.5 3.5 6M6 11V8M18 11V8M9.5 21v-4a2.5 2.5 0 0 1 5 0v4"/></symbol>
 </defs></svg>
@@ -171,6 +199,25 @@ button,a,.area,.cat,.card{touch-action:manipulation;-webkit-tap-highlight-color:
 <path d="M142 92V76c0-8 14-8 14 0v16z"/><path d="M160 92V80h22v12zM164 80c0-8 14-8 14 0z"/><rect x="234" y="58" width="11" height="34"/><rect x="247" y="68" width="13" height="24"/><rect x="262" y="52" width="12" height="40"/><rect x="276" y="64" width="14" height="28"/>
 
 </g><g><path d="M70 92L88 92L88 81.6L70 92.0z" fill="#ff5a36" opacity=".85"/><path d="M88 92L106 92L106 73.0L88 81.6z" fill="#ffc93c" opacity=".85"/><path d="M106 92L124 92L124 66.4L106 73.0z" fill="#2ec4b6" opacity=".85"/><path d="M124 92L142 92L142 61.7L124 66.4z" fill="#ff8fab" opacity=".85"/><path d="M142 92L160 92L160 58.9L142 61.7z" fill="#7b5cff" opacity=".85"/><path d="M160 92L178 92L178 58.0L160 58.9z" fill="#ff9f1c" opacity=".85"/><path d="M178 92L196 92L196 59.0L178 58.0z" fill="#ff5a36" opacity=".85"/><path d="M196 92L214 92L214 61.9L196 59.0z" fill="#ffc93c" opacity=".85"/><path d="M214 92L232 92L232 66.7L214 61.9z" fill="#2ec4b6" opacity=".85"/><path d="M232 92L250 92L250 73.5L232 66.7z" fill="#ff8fab" opacity=".85"/><path d="M250 92L268 92L268 82.1L250 73.5z" fill="#7b5cff" opacity=".85"/><path d="M268 92L286 92L286 92.6L268 82.1z" fill="#ff9f1c" opacity=".85"/><polyline points="70,92 79,86.5 88,92 97,77.1 106,92 115,69.5 124,92 133,63.8 142,92 151,60.1 160,92 169,58.2 178,92 187,58.3 196,92 205,60.2 214,92 223,64.1 232,92 241,69.9 250,92 259,77.5 268,92 277,87.1 286,92" fill="none" stroke="#1a0b05" stroke-width="1.1"/><path d="M70 92L70 92.0L76 88.3L82 84.8L88 81.6L94 78.5L100 75.7L106 73.0L112 70.6L118 68.4L124 66.4L130 64.6L136 63.1L142 61.7L148 60.6L154 59.6L160 58.9L166 58.4L172 58.1L178 58.0L184 58.1L190 58.5L196 59.0L202 59.8L208 60.7L214 61.9L220 63.3L226 64.9L232 66.7L238 68.8L244 71.0L250 73.5L256 76.1L262 79.0L268 82.1L274 85.4L280 88.9L286 92.6" fill="none" stroke="#1a0b05" stroke-width="2"/><rect x="62" y="91" width="232" height="4" fill="#1a0b05"/><path d="M110 95v6M178 95v6M246 95v6" stroke="#1a0b05" stroke-width="3"/></g></g></g><g stroke="#ffe3c4" stroke-width="1" opacity=".5" stroke-linecap="round"><path d="M190 100h30M195 105h22M200 111h12M188 118h34"/></g><ellipse cx="205" cy="102" rx="14" ry="2" fill="#fff1c9" opacity=".5"/></svg></div>
+      <details class="hiw">
+        <summary>
+          <h3>How AMD Mart Works</h3>
+          <p class="hiw-sub">Buy safely. Pick up directly. No delivery charges.</p>
+          <span class="hiw-tap"><span class="t-open">Tap to see process</span><span class="t-close">Tap to hide</span><svg class="ic"><use href="#i-chev"/></svg></span>
+        </summary>
+        <ol class="hiw-steps">
+          <li><span class="hiw-i"><svg class="ic"><use href="#i-send"/></svg><b>1</b></span><div><h4>Request a Product</h4><p>Found something you like? Tap “Request to Buy” and send your request.</p></div></li>
+          <li><span class="hiw-i"><svg class="ic"><use href="#i-shield"/></svg><b>2</b></span><div><h4>Seller &amp; Admin Review</h4><p>The seller confirms it’s available. The admin verifies it exists at the seller’s stated location.</p></div></li>
+          <li><span class="hiw-i"><svg class="ic"><use href="#i-check"/></svg><b>3</b></span><div><h4>Both Confirm</h4><p>Seller and admin approve. Then AMD Mart shares the seller’s full contact and pickup details with you.</p></div></li>
+          <li><span class="hiw-i"><svg class="ic"><use href="#i-pin"/></svg><b>4</b></span><div><h4>Collect Your Product</h4><p>Visit the seller’s location, check the product and collect it directly from them.</p></div></li>
+        </ol>
+        <div class="hiw-note"><b>Important:</b>
+          <ul>
+            <li>AMD Mart does not provide home delivery. Buyers must collect products directly from sellers.</li>
+            <li>No advance payment, no hidden charges and no delivery charge, not even ₹1.</li>
+          </ul>
+        </div>
+      </details>
       <label class="search"><svg class="ic"><use href="#i-search"/></svg><input id="q-home" placeholder="Search for products, services…" readonly></label>
       <div id="cats" class="cats"></div>
       <div class="sec-h"><h3><svg class="ic o"><use href="#i-pin"/></svg>Nearby Deals <small class="rad">in your area</small></h3><a href="#" data-v="explore">View All →</a></div>
