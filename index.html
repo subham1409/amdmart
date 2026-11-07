@@ -289,6 +289,23 @@ form input:focus,form select:focus,form textarea:focus{outline:2px solid #6c7a89
 .brand img{mix-blend-mode:multiply;background:transparent;border-radius:0;box-shadow:none}
 /* breathing room between the sticky top bar and page content */
 main{padding-top:12px}
+
+/* category-themed background on Explore */
+#app{isolation:isolate}
+#cat-bg{position:fixed;top:0;bottom:0;left:50%;width:100%;max-width:480px;transform:translateX(-50%);z-index:-1;pointer-events:none;opacity:0;transition:opacity .45s ease}
+#cat-bg.on{opacity:1}
+#cat-bg svg{display:block}
+/* tap a product photo to zoom */
+.slide{cursor:zoom-in}
+#zoom{position:fixed;inset:0;z-index:60;background:#0b0f14;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
+.z-stage{position:absolute;inset:0;touch-action:none;cursor:grab}
+.z-img{position:absolute;left:0;top:0;max-width:none!important;max-height:none!important;transform-origin:0 0;will-change:transform;-webkit-user-drag:none;pointer-events:none}
+.z-bar{position:absolute;top:0;left:0;right:0;z-index:2;display:flex;align-items:center;gap:12px;padding:max(10px,env(safe-area-inset-top)) 12px 18px;color:#fff;font-size:13px;background:linear-gradient(#000b,transparent);pointer-events:none}
+.z-bar button{pointer-events:auto}
+.z-n{margin-left:auto}.z-pct{opacity:.8}
+.z-b,.z-ctl button{border:0;border-radius:50%;width:42px;height:42px;font-size:20px;line-height:1;color:#fff;background:#ffffff26;backdrop-filter:blur(6px);cursor:pointer}
+.z-ctl{position:absolute;left:0;right:0;bottom:0;z-index:2;display:flex;justify-content:center;gap:12px;padding:18px 12px max(16px,env(safe-area-inset-bottom));background:linear-gradient(transparent,#000b)}
+.z-ctl button[data-z=one]{border-radius:21px;width:auto;padding:0 16px;font-size:14px;font-weight:700}
 </style>
 </head>
 <body>
@@ -323,6 +340,7 @@ main{padding-top:12px}
 <symbol id="i-palace" viewBox="0 0 24 24"><path d="M2 21h20M4 21V11h16v10M12 2v3M8.5 11c0-3.5 1.6-6 3.5-6s3.5 2.5 3.5 6M6 11V8M18 11V8M9.5 21v-4a2.5 2.5 0 0 1 5 0v4"/></symbol>
 </defs></svg>
 <div id="app">
+  <div id="cat-bg" aria-hidden="true"></div>
   <header class="top">
     <div class="brand"><img src="https://i.ibb.co/tpyCskfp/75-C80-FC1-2585-45-E3-BF9-A-DBAFA069-ED0-B.png" alt=""><div><h1>AMD <span>Mart</span></h1></div></div>
     <div class="top-r">

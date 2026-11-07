@@ -153,9 +153,16 @@ function draw(src, max) {
 // Photos are shrunk in parallel (fast), then saved with just 2 database writes.
 async function prepare(file, wantThumb) {
   const src = await decode(file);
-  const big = draw(src, 640);
+  // As sharp as the database rule allows (< 400,000 characters per photo): start big, shrink only if needed.
+  let dim = 1280, q = 0.72, full = "";
+  for (let k = 0; k < 10; k++) {
+    full = draw(src, dim).toDataURL("image/jpeg", q);
+    if (full.length < 380000) break;
+    if (q > 0.5) q -= 0.08; else dim = Math.round(dim * 0.85);
+  }
+  const thumb = wantThumb ? draw(src, 280).toDataURL("image/jpeg", 0.65) : "";
   if (src.close) src.close();
-  return { full: big.toDataURL("image/jpeg", 0.6), thumb: wantThumb ? draw(big, 280).toDataURL("image/jpeg", 0.65) : "" };
+  return { full, thumb };
 }
 export async function addProduct(data, files = []) {
   const me = uid();
@@ -195,13 +202,13 @@ export async function deleteProduct(pid) {
   await remove(ref(db, `products/${pid}`));
 }
 // Real-time product feed. opts: { category, sellerId }. Returns an unsubscribe function.
-export function listenProducts(cb, opts = {}) {
+export function listenProducts(cb, opts = {}, onError) {
   let q = ref(db, "products");
   if (opts.sellerId) q = query(q, orderByChild("sellerId"), equalTo(opts.sellerId));
   else if (opts.category) q = query(q, orderByChild("category"), equalTo(opts.category));
   return onValue(q, (s) =>
     cb(toList(s).filter((p) => p.status === "active" || opts.sellerId)
-      .sort((a, b) => b.createdAt - a.createdAt)));
+      .sort((a, b) => b.createdAt - a.createdAt)), (err) => { console.error(err); if (onError) onError(err); });
 }
 export async function getProduct(pid) {
   const s = await get(ref(db, `products/${pid}`));
