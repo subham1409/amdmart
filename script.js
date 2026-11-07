@@ -12,6 +12,8 @@ const ICONS = { iot: "cpu", books: "book", "shoes-clothes": "shoe", electronics:
 const ic = (n, c = "") => `<svg class="ic ${c}"><use href="#i-${n}"/></svg>`;
 const S = { user: null, cats: [], products: [], mine: [], favs: [], reqs: [], notifs: [], cat: "", q: "", view: "home", admin: false, loc: null, loaded: false, loadErr: false };
 let userUnsubs = [];
+let detailP = null;   // product currently open in the full-screen detail page
+let histPushed = false;
 
 function toast(m) { const t = $("#toast"); t.textContent = m; t.classList.remove("hidden"); setTimeout(() => t.classList.add("hidden"), 2500); }
 const safe = (fn) => async (...a) => { try { await fn(...a); } catch (e) { toast(e.message.replace("Firebase: ", "")); } };
@@ -20,9 +22,16 @@ const dlgEl = $("#dlg");
 if (typeof dlgEl.showModal !== "function") {
   dlgEl.classList.add("dlg-poly");
   dlgEl.showModal = () => dlgEl.setAttribute("open", "");
-  dlgEl.close = () => dlgEl.removeAttribute("open");
+  dlgEl.close = () => { dlgEl.removeAttribute("open"); dlgEl.dispatchEvent(new Event("close")); };
 }
-function open(html) { $("#dlg-body").innerHTML = html; if (!dlgEl.open) dlgEl.showModal(); }
+// full = true opens the popup as a full-screen page (used for product details)
+function open(html, full = false) { $("#dlg-body").innerHTML = html; dlgEl.classList.toggle("full", full); if (!dlgEl.open) dlgEl.showModal(); }
+dlgEl.addEventListener("close", () => {
+  dlgEl.classList.remove("full"); detailP = null;
+  if (histPushed) { histPushed = false; history.back(); }   // drop the extra history entry we added
+});
+// phone/browser Back button closes the product page instead of leaving the site
+window.addEventListener("popstate", () => { if (dlgEl.open && dlgEl.classList.contains("full")) { histPushed = false; dlgEl.close(); } });
 $("#x").onclick = () => $("#dlg").close();
 const need = () => { if (S.user) return true; authDialog(); return false; };
 
@@ -230,6 +239,7 @@ const favListHtml = () => favItems().map(card).join("") || '<p class="empty">No 
 const renderAll = () => {
   renderCats(); renderProducts(); renderRequests(); if (S.view === "profile") renderProfile(); renderBell(); renderFavBtn();
   const fl = $("#fav-list"); if (fl && $("#dlg").open) fl.innerHTML = favListHtml(); // keep open popup in sync
+  const ml = $("#more-list"); if (ml && detailP && $("#dlg").open) ml.innerHTML = moreHtml(detailP);
 };
 
 /* ---------- dialogs ---------- */
@@ -274,21 +284,41 @@ function postDialog() {
     $("#dlg").close(); toast("Ad published!");
   });
 }
+const catName = (id) => (S.cats.find((c) => c.id === id) || {}).name || "this category";
+function moreHtml(p) {
+  const list = S.products.filter((x) => x.id !== p.id && x.category === p.category && x.status !== "sold").slice(0, 8);
+  return list.map(card).join("") || '<p class="empty">No other items in this category yet.</p>';
+}
+const slides = (imgs) => (imgs.length ? imgs : [""]).map((u) => `<div class="slide" style="background-image:url('${esc(u)}')"></div>`).join("");
+const dots = (n) => n > 1 ? Array.from({ length: n }, (_, i) => `<i class="${i ? "" : "on"}" data-g="${i}"></i>`).join("") : "";
+
 async function detail(id) {
   const p = S.products.find((x) => x.id === id) || S.mine.find((x) => x.id === id);
   if (!p) return;
-  const [imgs, seller] = await Promise.all([getProductImages(id), getUser(p.sellerId)]);
-  if (!imgs.length && p.thumb) imgs.push(p.thumb);
+  detailP = p;
   const own = S.user && S.user.uid === p.sellerId;
-  open(`<div class="dgrid"><div><div class="detail-img" style="background-image:url('${esc(imgs[0] || "")}')"></div>
-    <div class="thumbs">${imgs.slice(1).map((u) => `<div style="background-image:url('${esc(u)}')"></div>`).join("")}</div></div><div>
+  // Opens instantly (thumbnail + info); full photos and seller name fill in a moment later.
+  open(`<div class="dt-bar"><button class="dt-back" id="dt-back" aria-label="Back">${ic("back")}</button></div>
+    <div class="gal-w"><div class="gal" id="gal">${slides(p.thumb ? [p.thumb] : [])}</div><div class="gdots" id="gdots"></div></div>
+    <div class="dt-body">
     <h3>${esc(p.title)} ${p.verified ? '<span class="badge">Verified</span>' : ""}</h3>
     <div class="price" style="font-size:22px">₹${Number(p.price).toLocaleString("en-IN")}${p.originalPrice > p.price ? `<s>₹${p.originalPrice}</s>` : ""}</div>
-    <p class="loc">${ic("pin")} ${esc(p.location)} · ${esc(p.condition)} · Seller: ${esc(seller?.name || "Student")}${seller?.college ? ", " + esc(seller.college) : ""}</p>
+    <p class="loc">${ic("pin")} ${esc(p.location)} · ${esc(p.condition)} · Seller: <span id="d-seller">…</span></p>
     <p style="margin:10px 0">${esc(p.description)}</p>
     ${own ? `<div class="act" style="display:flex;gap:8px"><button class="btn" id="d-sold" ${p.status === "sold" ? "disabled" : ""}>Mark sold</button><button class="btn red" id="d-del">Delete</button></div>`
       : p.status === "sold" ? "<p><b>This item is sold.</b></p>"
-      : `<form id="req-f"><textarea name="m" rows="2" maxlength="500" placeholder="Message to seller (optional)"></textarea><button class="btn">Request to Buy</button></form>`}</div></div>`);
+      : `<form id="req-f"><textarea name="m" rows="2" maxlength="500" placeholder="Message to seller (optional)"></textarea><button class="btn">Request to Buy</button></form>`}
+    <h4 class="more-h">More in ${esc(catName(p.category))}</h4>
+    <div id="more-list" class="grid">${moreHtml(p)}</div></div>`, true);
+  dlgEl.scrollTop = 0;
+  if (!histPushed) { try { history.pushState({ d: 1 }, ""); histPushed = true; } catch (_) {} }
+  $("#dt-back").onclick = () => dlgEl.close();
+  const gal = $("#gal");
+  gal.onscroll = () => {
+    const i = Math.round(gal.scrollLeft / (gal.clientWidth || 1));
+    document.querySelectorAll("#gdots i").forEach((d, k) => d.classList.toggle("on", k === i));
+  };
+  $("#gdots").onclick = (e) => { const i = e.target.dataset.g; if (i !== undefined) gal.scrollTo({ left: i * gal.clientWidth, behavior: "smooth" }); };
   if (own) {
     $("#d-sold").onclick = safe(async () => { await markSold(id); $("#dlg").close(); toast("Marked as sold"); });
     $("#d-del").onclick = safe(async () => { if (confirm("Delete this listing?")) { await deleteProduct(id); $("#dlg").close(); toast("Deleted"); } });
@@ -299,6 +329,11 @@ async function detail(id) {
       await sendRequest(p, e.target.m.value); $("#dlg").close(); toast("Request sent to seller!"); show("requests");
     });
   }
+  const [imgs, seller] = await Promise.all([getProductImages(id), getUser(p.sellerId)]);
+  if (detailP !== p || !dlgEl.open || !$("#gal")) return;   // user already left or opened another item
+  if (!imgs.length && p.thumb) imgs.push(p.thumb);
+  $("#gal").innerHTML = slides(imgs); $("#gdots").innerHTML = dots(imgs.length);
+  $("#d-seller").textContent = (seller?.name || "Student") + (seller?.college ? ", " + seller.college : "");
 }
 function bellDialog() {
   if (!need()) return;
