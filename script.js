@@ -15,7 +15,14 @@ let userUnsubs = [];
 
 function toast(m) { const t = $("#toast"); t.textContent = m; t.classList.remove("hidden"); setTimeout(() => t.classList.add("hidden"), 2500); }
 const safe = (fn) => async (...a) => { try { await fn(...a); } catch (e) { toast(e.message.replace("Firebase: ", "")); } };
-function open(html) { $("#dlg-body").innerHTML = html; if (!$("#dlg").open) $("#dlg").showModal(); }
+// Older iOS Safari (before 15.4) has no <dialog> support: fall back to a plain fixed popup.
+const dlgEl = $("#dlg");
+if (typeof dlgEl.showModal !== "function") {
+  dlgEl.classList.add("dlg-poly");
+  dlgEl.showModal = () => dlgEl.setAttribute("open", "");
+  dlgEl.close = () => dlgEl.removeAttribute("open");
+}
+function open(html) { $("#dlg-body").innerHTML = html; if (!dlgEl.open) dlgEl.showModal(); }
 $("#x").onclick = () => $("#dlg").close();
 const need = () => { if (S.user) return true; authDialog(); return false; };
 

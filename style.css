@@ -91,3 +91,9 @@ form input,form select,form textarea{padding:12px;border:1px solid #ddd;border-r
 .area{display:flex;align-items:center;gap:6px;padding:9px 10px;border-radius:10px;background:var(--o2);font-size:13px;text-align:left}
 .area .ic{width:14px;height:14px;color:var(--o)}.area.on{background:var(--o);color:#fff}.area.on .ic{color:#fff}
 .hint{font-size:12px;color:var(--g);margin-top:-4px}
+
+/* iOS: instant taps, no double-tap delay; fallback popup for browsers without <dialog> */
+button,a,.area,.cat,.card{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.loc-pill{min-height:32px}
+.dlg-poly{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:100;background:#fff;box-shadow:0 0 0 100vmax #0008}
+.dlg-poly:not([open]){display:none}
