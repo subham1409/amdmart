@@ -11,7 +11,7 @@ const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const ICONS = { iot: "cpu", books: "book", "shoes-clothes": "shoe", electronics: "laptop", hostel: "bed", services: "cap", traditional: "hanger", projects: "bag", others: "grid", "hot-deals": "flame" };
 const ic = (n, c = "") => `<svg class="ic ${c}"><use href="#i-${n}"/></svg>`;
-const S = { me: {}, user: null, cats: [], products: [], mine: [], favs: [], reqs: [], notifs: [], cat: "", q: "", rf: "all", view: "home", admin: false, loc: null, loaded: false, loadErr: false };
+const S = { me: {}, user: null, cats: [], products: [], mine: [], favs: [], reqs: [], notifs: [], cat: "", q: "", view: "home", admin: false, loc: null, loaded: false, loadErr: false };
 let userUnsubs = [];
 let detailP = null;   // product currently open in the full-screen detail page
 let histPushed = false;
@@ -224,23 +224,16 @@ function tracker(r) {
   return `<div class="trk">${step("Seller", s)}${step("Admin", d)}</div><p class="trk-m ${confirmed ? "ok" : closed ? "no" : ""}">${msg}</p>`;
 }
 function renderRequests() {
-  // keep the All / Selling / Buying tabs in sync
-  document.querySelectorAll("#req-tabs [data-rf]").forEach((b) => {
-    const on = b.dataset.rf === S.rf;
-    b.classList.toggle("on", on); b.setAttribute("aria-selected", on);
-  });
   if (!S.user) { $("#reqs").innerHTML = '<p class="empty">Log in to see your requests.</p>'; return; }
-  const kind = (r) => (r.sellerId === S.user.uid ? "selling" : "buying");
-  const list = S.rf === "all" ? S.reqs : S.reqs.filter((r) => kind(r) === S.rf);
-  $("#reqs").innerHTML = list.map((r) => {
-    const seller = kind(r) === "selling";
-    return `<div class="row" data-type="${kind(r)}"><b>${esc(r.productTitle)}</b> <span class="badge">${seller ? "Selling" : "Buying"}</span>
+  $("#reqs").innerHTML = S.reqs.map((r) => {
+    const seller = r.sellerId === S.user.uid;
+    return `<div class="row"><b>${esc(r.productTitle)}</b> <span class="badge">${seller ? "Selling" : "Buying"}</span>
       <div>${seller ? "From " + esc(r.buyerName) : "You requested"}${r.message ? ": " + esc(r.message) : ""}</div>
       ${tracker(r)}
       ${r.status === "pending" ? `<div class="act">${seller
         ? `<button class="btn sm" data-st="accepted" data-r="${r.id}">Accept</button><button class="btn sm red" data-st="rejected" data-r="${r.id}">Reject</button>`
         : `<button class="btn sm ghost" data-st="cancelled" data-r="${r.id}">Cancel</button>`}</div>` : ""}</div>`;
-  }).join("") || `<p class="empty">${S.rf === "all" ? "No requests yet." : "No " + S.rf + " requests yet."}</p>`;
+  }).join("") || '<p class="empty">No requests yet.</p>';
 }
 function renderProfile() {
   if (!S.user) {
@@ -433,10 +426,9 @@ function favDialog() {
 
 /* ---------- events ---------- */
 document.addEventListener("click", safe(async (e) => {
-  const t = e.target.closest("[data-v],[data-rf],[data-cat],[data-chip],[data-fav],[data-open],[data-st],[data-n],[data-loc],[data-area],[data-retry],#loc-gps,#p-login,#p-logout,#p-edit");
+  const t = e.target.closest("[data-v],[data-cat],[data-chip],[data-fav],[data-open],[data-st],[data-n],[data-loc],[data-area],[data-retry],#loc-gps,#p-login,#p-logout,#p-edit");
   if (!t) return;
   if (t.dataset.v) { e.preventDefault(); show(t.dataset.v); }
-  else if (t.dataset.rf) { S.rf = t.dataset.rf; renderRequests(); }
   else if (t.dataset.cat) { S.cat = t.dataset.cat; renderCats(); renderProducts(); show("explore"); }
   else if (t.dataset.chip !== undefined) { S.cat = t.dataset.chip; renderCats(); renderProducts(); }
   else if (t.dataset.fav) { e.stopPropagation(); if (need()) await toggleFavourite(t.dataset.fav); }
