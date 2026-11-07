@@ -67,14 +67,21 @@ function fmtDist(m) {
   if (m < 1000) return Math.min(990, Math.round(m / 10) * 10) + " m away";
   return (m / 1000).toFixed(1) + " km away";
 }
-// Approved by admin (verified), not sold, valid coordinates, within 2 km. Nearest first.
+// Nearby = products posted in the SAME AREA as the user, plus any other product within 2 km. Same area first, then nearest.
+// (Not hidden until admin-verified: Explore shows them too, and the "Verified" badge still marks approved ones.)
+const sameName = (a, b) => !!a && !!b && String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
 function nearbyProducts(list, loc) {
-  if (!loc || !validCoords(loc.lat, loc.lng)) return [];
+  if (!loc) return [];
+  const hasLoc = validCoords(loc.lat, loc.lng);
   return list
-    .filter((p) => p.verified === true && p.status !== "sold" && validCoords(p.lat, p.lng))
-    .map((p) => ({ ...p, _d: haversine(loc.lat, loc.lng, p.lat, p.lng) }))
-    .filter((p) => p._d <= RADIUS_M)
-    .sort((a, b) => a._d - b._d);
+    .filter((p) => p.status !== "sold")
+    .map((p) => {
+      const same = sameName(p.area || p.location, loc.area);
+      const d = hasLoc && validCoords(p.lat, p.lng) ? haversine(loc.lat, loc.lng, p.lat, p.lng) : null;
+      return { ...p, _same: same, _d: d };
+    })
+    .filter((p) => p._same || (p._d != null && p._d <= RADIUS_M))
+    .sort((a, b) => (b._same - a._same) || ((a._d ?? 0) - (b._d ?? 0)));
 }
 function nearestArea(lat, lng) {
   let best = null;
@@ -97,7 +104,7 @@ async function setLoc(loc, { close = false } = {}) {
   S.loc = loc; saveLocal(loc);
   renderLoc(); renderProducts();
   if (close && $("#dlg").open) $("#dlg").close();
-  toast(`Showing deals within 2 km of ${loc.area}`);
+  toast(`Showing deals in and around ${loc.area}`);
   if (S.user) { try { await saveLocationPref(loc); } catch (_) { toast("Saved on this device only"); } }
 }
 // Runs once the login state is known: account preference wins, else this device's saved choice, else ask.
@@ -145,8 +152,8 @@ function drawAreas(q) {
 }
 function locDialog() {
   open(`<h3>${S.loc ? "Change location" : "Choose your area"}</h3>
-    ${S.loc ? `<p class="loc-cur">${ic("pin", "o")}<b>${esc(S.loc.area)}</b><small>deals within 2 km</small></p>`
-      : '<p class="loc-sub">We show products within 2 km of you. No address needed.</p>'}
+    ${S.loc ? `<p class="loc-cur">${ic("pin", "o")}<b>${esc(S.loc.area)}</b><small>your area + 2 km</small></p>`
+      : '<p class="loc-sub">We show products from your area and within 2 km. No address needed.</p>'}
     <button class="btn full" id="loc-gps">${ic("target")} Use my current location</button>
     <div id="loc-err" class="loc-err hidden" role="alert"></div>
     <div class="or"><span>or select your area</span></div>
@@ -181,11 +188,11 @@ function renderCats() {
 function renderNearby() {
   const el = $("#nearby");
   if (S.loadErr) { el.innerHTML = '<div class="empty"><p>Couldn\'t load products. Check your connection.</p><div class="act"><button class="btn sm" data-retry>Try again</button></div></div>'; return; }
-  if (!S.loc) { el.innerHTML = '<div class="empty"><p>Select your area to see deals within 2 km.</p><div class="act"><button class="btn sm" data-loc>Choose area</button></div></div>'; return; }
+  if (!S.loc) { el.innerHTML = '<div class="empty"><p>Select your area to see deals near you.</p><div class="act"><button class="btn sm" data-loc>Choose area</button></div></div>'; return; }
   if (!S.loaded) { el.innerHTML = '<p class="empty">Loading nearby deals…</p>'; return; }
   const n = nearbyProducts(S.products, S.loc);
   el.innerHTML = n.map(card).join("") ||
-    '<div class="empty"><p>No products found within 2 km.</p><div class="act"><button class="btn sm" data-loc>Explore other areas</button><button class="btn sm ghost" data-v="explore">View all products</button></div></div>';
+    '<div class="empty"><p>No products found in your area yet.</p><div class="act"><button class="btn sm" data-loc>Explore other areas</button><button class="btn sm ghost" data-v="explore">View all products</button></div></div>';
 }
 function renderProducts() {
   renderNearby();

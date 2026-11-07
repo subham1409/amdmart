@@ -28,9 +28,9 @@ button{cursor:pointer;border:0;background:none;color:inherit}
 .hero{background:linear-gradient(110deg,#151515 45%,#b34a0a 100%);color:#fff;border-radius:var(--r);padding:26px 16px 26px 20px;display:flex;justify-content:space-between;align-items:center;overflow:hidden;margin:6px 0 14px}
 .hero h2{font:italic 700 25px/1.12 Georgia,serif}.hero h2 span{color:var(--o)}
 .hero .tag{display:block;margin-top:1px;font-size:11.5px;letter-spacing:.3px;color:rgba(255,255,255,.72)}
-.hero p{margin-top:12px;font-size:13px}.hero b{color:var(--o)}
+.hero p{margin-top:0;font-size:13px}.hero b{color:var(--o)}
 .hero{position:relative;min-height:168px}
-.hero>div:first-child{position:relative;z-index:2}
+.hero>div:first-child{position:relative;z-index:2;align-self:stretch;display:flex;flex-direction:column;justify-content:space-between;gap:10px}
 .hero-art{position:absolute;right:0;top:0;height:100%;width:68%;z-index:0;opacity:.55;-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 42%);mask-image:linear-gradient(90deg,transparent 0,#000 42%)}
 /* Optional real photo: save any Ahmedabad photo as hero.jpg next to index.html and it fades in over the drawing automatically */
 .hero::after{content:"";position:absolute;right:0;top:0;height:100%;width:68%;z-index:1;pointer-events:none;background:url("hero.jpg") center/cover no-repeat;opacity:.55;-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 45%);mask-image:linear-gradient(90deg,transparent 0,#000 45%)}
@@ -152,7 +152,7 @@ button,a,.area,.cat,.card{touch-action:manipulation;-webkit-tap-highlight-color:
 
   <main>
     <section id="v-home" class="view">
-      <div class="hero"><div><h2>From Students,<br><span>For Students.</span></h2><small class="tag">Ahmedabad Students' Marketplace</small><p>Buy <b>•</b> Sell <b>•</b> Reuse <b>•</b> Connect</p></div><svg class="hero-art" viewBox="0 0 300 130" preserveAspectRatio="xMaxYMax slice" aria-hidden="true"><defs>
+      <div class="hero"><div class="hero-t"><div><h2>From Students,<br><span>For Students.</span></h2><small class="tag">Ahmedabad Students' Marketplace</small></div><p>Buy <b>•</b> Sell <b>•</b> Reuse <b>•</b> Connect</p></div><svg class="hero-art" viewBox="0 0 300 130" preserveAspectRatio="xMaxYMax slice" aria-hidden="true"><defs>
 <linearGradient id="hs" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#24110a"/><stop offset=".45" stop-color="#8a3a10"/><stop offset=".8" stop-color="#f08a3c"/><stop offset="1" stop-color="#ffc27a"/></linearGradient>
 <linearGradient id="hr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e8782a"/><stop offset="1" stop-color="#2a1209"/></linearGradient>
 <radialGradient id="hg"><stop offset="0" stop-color="#fff1c9"/><stop offset=".5" stop-color="#ffc27a" stop-opacity=".6"/><stop offset="1" stop-color="#ffc27a" stop-opacity="0"/></radialGradient>
@@ -173,7 +173,7 @@ button,a,.area,.cat,.card{touch-action:manipulation;-webkit-tap-highlight-color:
 </g><g><path d="M70 92L88 92L88 81.6L70 92.0z" fill="#ff5a36" opacity=".85"/><path d="M88 92L106 92L106 73.0L88 81.6z" fill="#ffc93c" opacity=".85"/><path d="M106 92L124 92L124 66.4L106 73.0z" fill="#2ec4b6" opacity=".85"/><path d="M124 92L142 92L142 61.7L124 66.4z" fill="#ff8fab" opacity=".85"/><path d="M142 92L160 92L160 58.9L142 61.7z" fill="#7b5cff" opacity=".85"/><path d="M160 92L178 92L178 58.0L160 58.9z" fill="#ff9f1c" opacity=".85"/><path d="M178 92L196 92L196 59.0L178 58.0z" fill="#ff5a36" opacity=".85"/><path d="M196 92L214 92L214 61.9L196 59.0z" fill="#ffc93c" opacity=".85"/><path d="M214 92L232 92L232 66.7L214 61.9z" fill="#2ec4b6" opacity=".85"/><path d="M232 92L250 92L250 73.5L232 66.7z" fill="#ff8fab" opacity=".85"/><path d="M250 92L268 92L268 82.1L250 73.5z" fill="#7b5cff" opacity=".85"/><path d="M268 92L286 92L286 92.6L268 82.1z" fill="#ff9f1c" opacity=".85"/><polyline points="70,92 79,86.5 88,92 97,77.1 106,92 115,69.5 124,92 133,63.8 142,92 151,60.1 160,92 169,58.2 178,92 187,58.3 196,92 205,60.2 214,92 223,64.1 232,92 241,69.9 250,92 259,77.5 268,92 277,87.1 286,92" fill="none" stroke="#1a0b05" stroke-width="1.1"/><path d="M70 92L70 92.0L76 88.3L82 84.8L88 81.6L94 78.5L100 75.7L106 73.0L112 70.6L118 68.4L124 66.4L130 64.6L136 63.1L142 61.7L148 60.6L154 59.6L160 58.9L166 58.4L172 58.1L178 58.0L184 58.1L190 58.5L196 59.0L202 59.8L208 60.7L214 61.9L220 63.3L226 64.9L232 66.7L238 68.8L244 71.0L250 73.5L256 76.1L262 79.0L268 82.1L274 85.4L280 88.9L286 92.6" fill="none" stroke="#1a0b05" stroke-width="2"/><rect x="62" y="91" width="232" height="4" fill="#1a0b05"/><path d="M110 95v6M178 95v6M246 95v6" stroke="#1a0b05" stroke-width="3"/></g></g></g><g stroke="#ffe3c4" stroke-width="1" opacity=".5" stroke-linecap="round"><path d="M190 100h30M195 105h22M200 111h12M188 118h34"/></g><ellipse cx="205" cy="102" rx="14" ry="2" fill="#fff1c9" opacity=".5"/></svg></div>
       <label class="search"><svg class="ic"><use href="#i-search"/></svg><input id="q-home" placeholder="Search for products, services…" readonly></label>
       <div id="cats" class="cats"></div>
-      <div class="sec-h"><h3><svg class="ic o"><use href="#i-pin"/></svg>Nearby Deals <small class="rad">within 2 km</small></h3><a href="#" data-v="explore">View All →</a></div>
+      <div class="sec-h"><h3><svg class="ic o"><use href="#i-pin"/></svg>Nearby Deals <small class="rad">in your area</small></h3><a href="#" data-v="explore">View All →</a></div>
       <div id="nearby" class="hscroll"></div>
     </section>
 
