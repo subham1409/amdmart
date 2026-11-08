@@ -176,6 +176,7 @@ function show(v) {
   $("#v-" + v).classList.remove("hidden");
   document.querySelectorAll(".nav [data-v], .dnav [data-v]").forEach((b) => b.classList.toggle("on", b.dataset.v === v));
   $("#wa").classList.toggle("hidden", v !== "profile");   // WhatsApp button only on the Profile page
+  $("#ig").classList.toggle("hidden", v !== "profile");   // Instagram button sits beside it
   if (v === "profile") renderProfile();
   scrollTo(0, 0);
   applyTheme();
@@ -577,7 +578,7 @@ async function detail(id) {
 }
 function bellDialog() {
   if (!need()) return;
-  open(`<h3>Notifications</h3><div class="list">${S.notifs.map((n) => `<div class="row" data-n="${n.id}" style="${n.read ? "opacity:.6" : ""}"><b>${esc(n.title)}</b><div>${esc(n.message)}</div></div>`).join("") || '<p class="empty">Nothing new.</p>'}</div>`);
+  open(`<h3>Notifications</h3><div class="list nlist">${S.notifs.map((n) => `<div class="row" data-n="${n.id}" style="${n.read ? "opacity:.6" : ""}"><b>${esc(n.title)}</b><div>${esc(n.message)}</div></div>`).join("") || '<p class="empty">Nothing new.</p>'}</div>`);
 }
 
 function favDialog() {
