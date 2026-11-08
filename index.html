@@ -306,6 +306,12 @@ main{padding-top:12px}
 .z-b,.z-ctl button{border:0;border-radius:50%;width:42px;height:42px;font-size:20px;line-height:1;color:#fff;background:#ffffff26;backdrop-filter:blur(6px);cursor:pointer}
 .z-ctl{position:absolute;left:0;right:0;bottom:0;z-index:2;display:flex;justify-content:center;gap:12px;padding:18px 12px max(16px,env(safe-area-inset-bottom));background:linear-gradient(transparent,#000b)}
 .z-ctl button[data-z=one]{border-radius:21px;width:auto;padding:0 16px;font-size:14px;font-weight:700}
+/* coupon row on the product page */
+.cpn{display:flex;gap:8px;align-items:stretch}
+.cpn input{flex:1;min-width:0}
+.cpn input:not(:placeholder-shown){text-transform:uppercase}
+.cpn .btn{flex:none}
+.cpn-m{font-size:12.5px;font-weight:600;margin-top:-4px}.cpn-m.ok{color:#2f8f5b}.cpn-m.no{color:#b3261e}
 /* floating Instagram button: just left of the WhatsApp button (Profile page) */
 .ig{position:fixed;bottom:92px;right:calc(max(14px,calc(50vw - 226px)) + 62px);width:52px;height:52px;border-radius:50%;background:radial-gradient(circle at 30% 107%,#fdf497 0,#fdf497 5%,#fd5949 45%,#d6249f 60%,#285aeb 90%);color:#fff;display:grid;place-items:center;box-shadow:0 4px 14px #0004;z-index:4;text-decoration:none;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .ig svg{width:28px;height:28px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}

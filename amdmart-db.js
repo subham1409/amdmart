@@ -7,7 +7,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import {
   ref, get, set, update, remove, push, query, orderByChild, equalTo,
-  onValue, serverTimestamp
+  onValue, serverTimestamp, runTransaction
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
 
 const toList = (snap) => {
@@ -234,16 +234,65 @@ export async function toggleFavourite(pid) {
 export const listenFavouriteIds = (cb) =>
   onValue(ref(db, `favourites/${uid()}`), (s) => cb(Object.keys(s.val() || {})));
 
+/* ---------------- COUPONS ---------------- */
+// coupons/<CODE> = { code, type: "pct" | "flat", value, maxUses, used, active, createdAt }
+export const normCoupon = (s) => String(s || "").trim().toUpperCase().replace(/[^A-Z0-9_-]/g, "");
+export function couponDiscount(c, price) {
+  const p = Number(price) || 0, v = Number(c.value) || 0;
+  return Math.max(0, Math.min(p, Math.round(c.type === "flat" ? v : p * v / 100)));
+}
+// Buyer: checks a code against a price (read only). Returns { code, type, value, maxUses, discount, finalPrice }.
+export async function checkCoupon(raw, price) {
+  const code = normCoupon(raw);
+  if (code.length < 3) throw new Error("Enter a valid coupon code.");
+  let c = null;
+  try { const s = await get(ref(db, `coupons/${code}`)); c = s.exists() ? s.val() : null; }
+  catch (_) { throw new Error("Couldn't check the coupon. Please try again."); }
+  if (!c || c.active === false) throw new Error("This coupon code isn't valid.");
+  const maxUses = Number(c.maxUses) || 0;
+  if ((Number(c.used) || 0) >= maxUses) throw new Error("This coupon has reached its usage limit.");
+  const discount = couponDiscount(c, price);
+  if (discount <= 0) throw new Error("This coupon doesn't apply to this product.");
+  return { code, type: c.type, value: Number(c.value), maxUses, discount, finalPrice: Number(price) - discount };
+}
+// Counts one use. The transaction refuses to go past maxUses, so two buyers can't both take the last use.
+async function redeemCoupon(raw, price) {
+  const c = await checkCoupon(raw, price);
+  let res;
+  try { res = await runTransaction(ref(db, `coupons/${c.code}/used`), (n) => ((Number(n) || 0) >= c.maxUses ? undefined : (Number(n) || 0) + 1)); }
+  catch (_) { throw new Error("Couldn't apply the coupon. Please try again."); }
+  if (!res.committed) throw new Error("This coupon has reached its usage limit.");
+  return c;
+}
+// Admin-only (rules enforce it)
+export async function createCoupon({ code, type, value, maxUses }) {
+  code = normCoupon(code);
+  if (code.length < 3 || code.length > 20) throw new Error("Coupon code must be 3 to 20 letters or numbers.");
+  if (type !== "pct" && type !== "flat") throw new Error("Choose a discount type.");
+  value = Number(value); maxUses = Math.floor(Number(maxUses));
+  if (!(value > 0)) throw new Error("Enter a discount greater than 0.");
+  if (type === "pct" && value > 100) throw new Error("A percentage discount can't be more than 100.");
+  if (!(maxUses >= 1)) throw new Error("Max uses must be at least 1.");
+  const r = ref(db, `coupons/${code}`);
+  if ((await get(r)).exists()) throw new Error("That coupon code already exists.");
+  await set(r, { code, type, value, maxUses, used: 0, active: true, createdAt: Date.now() });
+}
+export const setCouponActive = (code, on) => update(ref(db, `coupons/${code}`), { active: !!on });
+export const deleteCoupon = (code) => remove(ref(db, `coupons/${code}`));
+
 /* ---------------- BUYING REQUESTS ---------------- */
-export async function sendRequest(product, message = "") {
+export async function sendRequest(product, message = "", couponCode = "") {
   const me = uid();
   if (product.sellerId === me) throw new Error("You can't request your own product.");
+  const cp = couponCode ? await redeemCoupon(couponCode, product.price) : null;
   const rid = push(ref(db, "requests")).key;
   // order matters: rules check the request exists before allowing the index entries
   await set(ref(db, `requests/${rid}`), {
     productId: product.id, productTitle: product.title, buyerId: me,
     buyerName: auth.currentUser.displayName || "Student",
-    sellerId: product.sellerId, message, status: "pending", createdAt: Date.now()
+    sellerId: product.sellerId, message, status: "pending", createdAt: Date.now(),
+    ...(cp ? { couponCode: cp.code, couponType: cp.type, couponValue: cp.value, couponDiscount: cp.discount,
+               listedPrice: Number(product.price), finalPrice: cp.finalPrice } : {})
   });
   await set(ref(db, `userRequests/${me}/${rid}`), true);
   await set(ref(db, `userRequests/${product.sellerId}/${rid}`), true);

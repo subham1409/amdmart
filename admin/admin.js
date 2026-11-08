@@ -1,12 +1,12 @@
 // admin.js — admin UI. This is only a convenience layer: every action is enforced by
 // database.rules.json (admins/<uid> must exist), so editing this file grants nothing.
 import { db } from "../firebase.js";
-import { onUser, login, logout, isAdmin, seedCategories, verifyProduct, setAdminStatus } from "../amdmart-db.js";
+import { onUser, login, logout, isAdmin, seedCategories, verifyProduct, setAdminStatus, createCoupon, setCouponActive, deleteCoupon } from "../amdmart-db.js";
 import { ref, onValue, remove, set, get, update } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const D = { products: [], requests: [], users: [], categories: [] };
+const D = { products: [], requests: [], users: [], categories: [], coupons: [] };
 let tab = "products", started = false;
 
 const list = (snap) => { const a = []; snap.forEach((c) => { a.push({ id: c.key, ...c.val() }); }); return a; };
@@ -75,6 +75,7 @@ function start() {
   onValue(ref(db, "products"), (s) => { D.products = list(s); draw(); });
   onValue(ref(db, "requests"), (s) => { D.requests = list(s); draw(); });
   onValue(ref(db, "categories"), (s) => { D.categories = list(s).sort((a, b) => a.order - b.order); draw(); });
+  onValue(ref(db, "coupons"), (s) => { D.coupons = list(s).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); draw(); });
   onValue(ref(db, "users"), async (s) => {
     const users = list(s);
     await Promise.all(users.map(async (u) => {
@@ -109,7 +110,7 @@ function draw() {
     h = `<table><tr><th>Product</th><th>Buyer</th><th>Seller</th><th>Seller says</th><th>Admin</th><th>Date</th><th></th></tr>${reqs.map((r) => {
       const p = D.products.find((x) => x.id === r.productId) || {};
       const a = r.adminStatus || "pending";
-      return `<tr><td><b>${esc(r.productTitle)}</b>${p.price ? `<br>₹${p.price}` : ""}${p.area || p.location ? `<br><small>${esc(p.area || p.location)}</small>` : ""}${r.message ? `<br><small>“${esc(r.message)}”</small>` : ""}</td>
+      return `<tr><td><b>${esc(r.productTitle)}</b>${p.price ? `<br>₹${p.price}` : ""}${r.couponCode ? `<br><small>🎟 Coupon <b>${esc(r.couponCode)}</b> (${r.couponType === "flat" ? "₹" + esc(r.couponValue) : esc(r.couponValue) + "%"} off, −₹${esc(r.couponDiscount)})<br>Buyer pays ₹${esc(r.finalPrice)}</small>` : ""}${p.area || p.location ? `<br><small>${esc(p.area || p.location)}</small>` : ""}${r.message ? `<br><small>“${esc(r.message)}”</small>` : ""}</td>
       <td>${who(r.buyerId, r.buyerName, "buyer", r.productTitle || p.title)}</td><td>${who(r.sellerId, undefined, "seller", r.productTitle || p.title)}</td>
       <td><span class="tag">${sellerSt[r.status] || r.status}</span></td><td><span class="tag">${adminSt[a] || a}</span></td>
       <td>${new Date(r.createdAt).toLocaleString()}</td>
@@ -118,6 +119,16 @@ function draw() {
   } else if (tab === "users") {
     h = `<table><tr><th>Name</th><th>Phone</th><th>Email</th><th>College</th><th>Joined</th></tr>${D.users.map((u) =>
       `<tr><td>${esc(u.name)}</td><td>${u.phone ? `<a href="tel:${esc(u.phone)}">${esc(u.phone)}</a>` : "—"}</td><td>${esc(u.email || "")}</td><td>${esc(u.college || "")}</td><td>${new Date(u.createdAt).toLocaleDateString()}</td></tr>`).join("")}</table>`;
+  } else if (tab === "coupons") {
+    const state = (c) => c.active === false ? "Disabled" : (Number(c.used) || 0) >= (Number(c.maxUses) || 0) ? "Used up" : "Active";
+    h = `<form class="inline" id="cpn-f"><input name="code" placeholder="Coupon code (e.g. WELCOME10)" maxlength="20" required style="text-transform:uppercase">
+      <select name="type"><option value="pct">Percentage (%) off</option><option value="flat">Flat ₹ off</option></select>
+      <input name="value" type="number" min="1" step="1" placeholder="Discount (e.g. 10)" required>
+      <input name="maxUses" type="number" min="1" step="1" placeholder="Can be used how many times?" required>
+      <button>Create coupon</button></form>
+      <table><tr><th>Code</th><th>Discount</th><th>Used</th><th>Status</th><th></th></tr>${D.coupons.map((c) =>
+      `<tr><td><b>${esc(c.code || c.id)}</b></td><td>${c.type === "flat" ? "₹" + esc(c.value) : esc(c.value) + "%"} off</td><td>${Number(c.used) || 0} / ${esc(c.maxUses)}</td><td><span class="tag">${state(c)}</span></td>
+      <td><button class="gray" data-tgcp="${esc(c.id)}" data-val="${c.active === false}">${c.active === false ? "Enable" : "Disable"}</button><button class="red" data-delcp="${esc(c.id)}">Delete</button></td></tr>`).join("") || '<tr><td colspan="5">No coupons yet.</td></tr>'}</table>`;
   } else {
     h = `<form class="inline" id="cat-f"><input name="name" placeholder="New category name" required><button>Add</button><button type="button" class="gray" id="seed">Add default categories</button></form>
       <table><tr><th>ID</th><th>Name</th><th></th></tr>${D.categories.map((c) =>
@@ -183,6 +194,8 @@ document.addEventListener("click", run(async (e) => {
   }
   else if (t.dataset.delr) { if (confirm("Delete this request?")) await remove(ref(db, `requests/${t.dataset.delr}`)); }
   else if (t.dataset.delc) { if (confirm("Delete this category?")) await remove(ref(db, `categories/${t.dataset.delc}`)); }
+  else if (t.dataset.tgcp) await setCouponActive(t.dataset.tgcp, t.dataset.val === "true");
+  else if (t.dataset.delcp) { if (confirm("Delete this coupon?")) await deleteCoupon(t.dataset.delcp); }
   else if (t.id === "seed") alert(`${await seedCategories()} categories added.`);
   else if (t.id === "out") await logout();
 }));
@@ -190,6 +203,7 @@ document.addEventListener("submit", run(async (e) => {
   e.preventDefault();
   if (e.target.id === "login-f") { const d = Object.fromEntries(new FormData(e.target)); await login(d.email, d.password); }
   if (e.target.id === "ed-f") await saveEdit(e.target);
+  if (e.target.id === "cpn-f") { await createCoupon(Object.fromEntries(new FormData(e.target))); e.target.reset(); }
   if (e.target.id === "cat-f") {
     const name = e.target.name.value.trim();
     const id = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");

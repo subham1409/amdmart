@@ -4,7 +4,7 @@ import {
   onUser, register, login, logout, isAdmin, getUser, listenCategories, listenProducts,
   addProduct, getProductImages, markSold, deleteProduct, toggleFavourite, listenFavouriteIds, sendRequest,
   setRequestStatus, listenMyRequests, listenNotifications, markNotificationRead, saveLocationPref, getLocationPref,
-  getMyPhone, savePhone, updateMyProfile, changeEmail, syncEmail
+  getMyPhone, savePhone, updateMyProfile, changeEmail, syncEmail, checkCoupon, normCoupon
 } from "./amdmart-db.js";
 import { areaDistance } from "./distances.js";
 
@@ -383,6 +383,7 @@ function renderRequests() {
     const seller = r.sellerId === S.user.uid;
     return `<div class="row"><b>${esc(r.productTitle)}</b> <span class="badge">${seller ? "Selling" : "Buying"}</span>
       <div>${seller ? "From " + esc(r.buyerName) : "You requested"}${r.message ? ": " + esc(r.message) : ""}</div>
+      ${r.couponCode ? `<div class="hint" style="margin-top:4px">Coupon ${esc(r.couponCode)} applied · price ₹${Number(r.finalPrice).toLocaleString("en-IN")}</div>` : ""}
       ${tracker(r)}
       ${r.status === "pending" ? `<div class="act">${seller
         ? `<button class="btn sm" data-st="accepted" data-r="${r.id}">Accept</button><button class="btn sm red" data-st="rejected" data-r="${r.id}">Reject</button>`
@@ -534,7 +535,7 @@ async function detail(id) {
     <div class="gal-w"><div class="gal" id="gal">${slides(p.thumb ? [p.thumb] : [])}</div><div class="gdots" id="gdots"></div></div>
     <div class="dt-body">
     <h3>${esc(p.title)} ${p.verified ? '<span class="badge">Verified</span>' : ""}</h3>
-    <div class="price" style="font-size:22px">₹${Number(p.price).toLocaleString("en-IN")}${p.originalPrice > p.price ? `<s>₹${p.originalPrice}</s>` : ""}</div>
+    <div class="price" id="d-price" style="font-size:22px">₹${Number(p.price).toLocaleString("en-IN")}${p.originalPrice > p.price ? `<s>₹${p.originalPrice}</s>` : ""}</div>
     <div class="dt-info">
       <div class="ir"><span>${ic("pin")}Location</span><b>${esc(p.area || p.location || "Ahmedabad")}</b></div>
       <div class="ir"><span>${ic("pin")}Distance</span><b>${esc(distText(p))}</b></div>
@@ -545,7 +546,10 @@ async function detail(id) {
     <p class="dt-desc">${esc(p.description) || "No description added."}</p>
     ${own ? `<div class="act" style="display:flex;gap:8px"><button class="btn" id="d-sold" ${p.status === "sold" ? "disabled" : ""}>Mark sold</button><button class="btn red" id="d-del">Delete</button></div>`
       : p.status === "sold" ? "<p><b>This item is sold.</b></p>"
-      : `<form id="req-f"><textarea name="m" rows="2" maxlength="500" placeholder="Message to seller (optional)"></textarea><button class="btn">Request to Buy</button></form>`}
+      : `<form id="req-f"><textarea name="m" rows="2" maxlength="500" placeholder="Message to seller (optional)"></textarea>
+        <div class="cpn"><input id="cpn-i" placeholder="Enter coupon code" autocomplete="off" autocapitalize="characters" maxlength="20"><button type="button" class="btn ghost sm" id="cpn-v">Verify</button></div>
+        <small id="cpn-m" class="cpn-m hidden"></small>
+        <button class="btn">Request to Buy</button></form>`}
     <h4 class="more-h">More in ${esc(catName(p.category))}</h4>
     <div id="more-list" class="grid">${moreHtml(p)}</div></div>`, true);
   dlgEl.scrollTop = 0;
@@ -562,11 +566,31 @@ async function detail(id) {
     $("#d-sold").onclick = safe(async () => { await markSold(id); $("#dlg").close(); toast("Marked as sold"); });
     $("#d-del").onclick = safe(async () => { if (confirm("Delete this listing?")) { await deleteProduct(id); $("#dlg").close(); toast("Deleted"); } });
   } else if ($("#req-f")) {
+    // coupon: type a code, tap Verify, and the price shown here drops by the discount
+    const basePrice = $("#d-price").innerHTML, cpnI = $("#cpn-i"), cpnV = $("#cpn-v"), cpnM = $("#cpn-m");
+    let cp = null;
+    const cpnMsg = (txt, cls = "") => { cpnM.textContent = txt; cpnM.className = "cpn-m " + cls; cpnM.classList.toggle("hidden", !txt); };
+    const cpnReset = () => { cp = null; $("#d-price").innerHTML = basePrice; cpnMsg(""); };
+    cpnI.oninput = () => { if (cp || cpnM.textContent) cpnReset(); };
+    cpnV.onclick = async () => {
+      if (!need()) return;
+      if (!cpnI.value.trim()) return cpnMsg("Enter a coupon code first.", "no");
+      cpnV.disabled = true; cpnV.textContent = "Checking…";
+      try {
+        cp = await checkCoupon(cpnI.value, p.price);
+        cpnI.value = cp.code;
+        $("#d-price").innerHTML = `₹${cp.finalPrice.toLocaleString("en-IN")}<s>₹${Number(p.price).toLocaleString("en-IN")}</s>`;
+        cpnMsg(`Coupon applied. You save ₹${cp.discount.toLocaleString("en-IN")}.`, "ok");
+      } catch (err) { cpnReset(); cpnMsg(err.message, "no"); }
+      finally { cpnV.disabled = false; cpnV.textContent = "Verify"; }
+    };
     $("#req-f").onsubmit = safe(async (e) => {
       e.preventDefault();
       if (!need()) return;
       if (!(await getMyPhone())) return phoneDialog(() => detail(id));
-      await sendRequest(p, e.target.m.value); $("#dlg").close(); toast("Request sent to seller!"); show("requests");
+      const code = cpnI.value.trim();
+      if (code && (!cp || cp.code !== normCoupon(code))) throw new Error("Tap Verify to apply your coupon, or clear the code.");
+      await sendRequest(p, e.target.m.value, code ? cp.code : ""); $("#dlg").close(); toast("Request sent to seller!"); show("requests");
     });
   }
   const [imgs, seller] = await Promise.all([getProductImages(id), getUser(p.sellerId).catch(() => null)]);

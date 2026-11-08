@@ -36,6 +36,10 @@ dialog#ed::backdrop{background:#2a344280}
 #ed-f label.chk{flex-direction:row;align-items:center;gap:8px;align-self:end;padding-bottom:10px}#ed-f label.chk input{width:auto}
 .acts{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}
 td button.edit{background:linear-gradient(135deg,#4b7bd1,#2d4f94)}
+/* ===== Coupons tab ===== */
+select{padding:10px;border:1px solid #ddd;border-radius:8px;font:inherit;background:#fff;color:var(--d)}
+#cpn-f{flex-wrap:wrap;align-items:stretch;margin:0 0 14px}
+#cpn-f input,#cpn-f select{flex:1 1 150px;min-width:0}
 /* ===== WhatsApp contact button (Requests tab) ===== */
 td a.wa,td .wa{display:inline-flex;align-items:center;gap:5px;margin-top:6px;padding:3px 9px 3px 6px;border-radius:999px;background:#25d366;color:#fff;font-size:11px;font-weight:600;line-height:1.2;text-decoration:none;white-space:nowrap;box-shadow:0 1px 3px #0003}
 td a.wa:hover{background:#1ebe5b}
