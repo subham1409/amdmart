@@ -7,7 +7,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import {
   ref, get, set, update, remove, push, query, orderByChild, equalTo,
-  onValue, serverTimestamp, runTransaction
+  onValue, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
 
 const toList = (snap) => {
@@ -241,28 +241,24 @@ export function couponDiscount(c, price) {
   const p = Number(price) || 0, v = Number(c.value) || 0;
   return Math.max(0, Math.min(p, Math.round(c.type === "flat" ? v : p * v / 100)));
 }
-// Buyer: checks a code against a price (read only). Returns { code, type, value, maxUses, discount, finalPrice }.
+// Buyer: checks a code against a price (read only). One account (= one email) can use a coupon only once:
+// couponUses/<CODE>/<uid> is written together with the use count, so it exists once the coupon was used.
+// Returns { code, type, value, maxUses, used, discount, finalPrice }.
 export async function checkCoupon(raw, price) {
   const code = normCoupon(raw);
   if (code.length < 3) throw new Error("Enter a valid coupon code.");
-  let c = null;
-  try { const s = await get(ref(db, `coupons/${code}`)); c = s.exists() ? s.val() : null; }
-  catch (_) { throw new Error("Couldn't check the coupon. Please try again."); }
+  let c = null, mine = false;
+  try {
+    const [s, m] = await Promise.all([get(ref(db, `coupons/${code}`)), get(ref(db, `couponUses/${code}/${uid()}`))]);
+    c = s.exists() ? s.val() : null; mine = m.exists();
+  } catch (e) { throw new Error(e.message === "Please log in first." ? e.message : "Couldn't check the coupon. Please try again."); }
   if (!c || c.active === false) throw new Error("This coupon code isn't valid.");
-  const maxUses = Number(c.maxUses) || 0;
-  if ((Number(c.used) || 0) >= maxUses) throw new Error("This coupon has reached its usage limit.");
+  if (mine) throw new Error("You have already used this coupon.");
+  const maxUses = Number(c.maxUses) || 0, used = Number(c.used) || 0;
+  if (used >= maxUses) throw new Error("This coupon has reached its usage limit.");
   const discount = couponDiscount(c, price);
   if (discount <= 0) throw new Error("This coupon doesn't apply to this product.");
-  return { code, type: c.type, value: Number(c.value), maxUses, discount, finalPrice: Number(price) - discount };
-}
-// Counts one use. The transaction refuses to go past maxUses, so two buyers can't both take the last use.
-async function redeemCoupon(raw, price) {
-  const c = await checkCoupon(raw, price);
-  let res;
-  try { res = await runTransaction(ref(db, `coupons/${c.code}/used`), (n) => ((Number(n) || 0) >= c.maxUses ? undefined : (Number(n) || 0) + 1)); }
-  catch (_) { throw new Error("Couldn't apply the coupon. Please try again."); }
-  if (!res.committed) throw new Error("This coupon has reached its usage limit.");
-  return c;
+  return { code, type: c.type, value: Number(c.value), maxUses, used, discount, finalPrice: Number(price) - discount };
 }
 // Admin-only (rules enforce it)
 export async function createCoupon({ code, type, value, maxUses }) {
@@ -278,26 +274,42 @@ export async function createCoupon({ code, type, value, maxUses }) {
   await set(r, { code, type, value, maxUses, used: 0, active: true, createdAt: Date.now() });
 }
 export const setCouponActive = (code, on) => update(ref(db, `coupons/${code}`), { active: !!on });
-export const deleteCoupon = (code) => remove(ref(db, `coupons/${code}`));
+// also clears who used it, so the same code can be created again later with a clean slate
+export const deleteCoupon = (code) => update(ref(db), { [`coupons/${code}`]: null, [`couponUses/${code}`]: null });
 
 /* ---------------- BUYING REQUESTS ---------------- */
 export async function sendRequest(product, message = "", couponCode = "") {
   const me = uid();
   if (product.sellerId === me) throw new Error("You can't request your own product.");
-  const cp = couponCode ? await redeemCoupon(couponCode, product.price) : null;
   const rid = push(ref(db, "requests")).key;
-  // order matters: rules check the request exists before allowing the index entries
-  await set(ref(db, `requests/${rid}`), {
-    productId: product.id, productTitle: product.title, buyerId: me,
-    buyerName: auth.currentUser.displayName || "Student",
-    sellerId: product.sellerId, message, status: "pending", createdAt: Date.now(),
-    ...(cp ? { couponCode: cp.code, couponType: cp.type, couponValue: cp.value, couponDiscount: cp.discount,
-               listedPrice: Number(product.price), finalPrice: cp.finalPrice } : {})
-  });
-  await set(ref(db, `userRequests/${me}/${rid}`), true);
-  await set(ref(db, `userRequests/${product.sellerId}/${rid}`), true);
-  await notify(product.sellerId, "request", "New buying request",
-    `${auth.currentUser.displayName || "A student"} wants "${product.title}"`, { requestId: rid });
+  const name = auth.currentUser.displayName || "Student";
+  const body = {
+    productId: product.id, productTitle: product.title, buyerId: me, buyerName: name,
+    sellerId: product.sellerId, message, status: "pending", createdAt: Date.now()
+  };
+  if (!couponCode) await set(ref(db, `requests/${rid}`), body);
+  else {
+    // The request, the coupon's use count and "this account used it" are saved in ONE atomic write:
+    // either all three happen or none. If someone else took the last use a moment ago, re-check and retry.
+    for (let i = 0; ; i++) {
+      const c = await checkCoupon(couponCode, product.price);
+      try {
+        await update(ref(db), {
+          [`coupons/${c.code}/used`]: c.used + 1,
+          [`couponUses/${c.code}/${me}`]: Date.now(),
+          [`requests/${rid}`]: { ...body, couponCode: c.code, couponType: c.type, couponValue: c.value,
+            couponDiscount: c.discount, listedPrice: Number(product.price), finalPrice: c.finalPrice }
+        });
+        break;
+      } catch (_) { if (i >= 2) throw new Error("Couldn't apply the coupon. Please try again."); }
+    }
+  }
+  // the request must exist first (rules check it); after that the three small writes run together
+  await Promise.all([
+    set(ref(db, `userRequests/${me}/${rid}`), true),
+    set(ref(db, `userRequests/${product.sellerId}/${rid}`), true),
+    notify(product.sellerId, "request", "New buying request", `${name} wants "${product.title}"`, { requestId: rid })
+  ]);
   return rid;
 }
 // Seller: "accepted" | "rejected". Buyer: "cancelled".

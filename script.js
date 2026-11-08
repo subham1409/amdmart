@@ -587,10 +587,15 @@ async function detail(id) {
     $("#req-f").onsubmit = safe(async (e) => {
       e.preventDefault();
       if (!need()) return;
-      if (!(await getMyPhone())) return phoneDialog(() => detail(id));
       const code = cpnI.value.trim();
       if (code && (!cp || cp.code !== normCoupon(code))) throw new Error("Tap Verify to apply your coupon, or clear the code.");
-      await sendRequest(p, e.target.m.value, code ? cp.code : ""); $("#dlg").close(); toast("Request sent to seller!"); show("requests");
+      const btn = e.target.querySelector(".btn:not(.ghost)"), label = btn.textContent;
+      btn.disabled = true; btn.textContent = "Sending…";   // instant feedback, and no double taps
+      try {
+        if (!(S.me.phone || await getMyPhone())) { btn.disabled = false; btn.textContent = label; return phoneDialog(() => detail(id)); }
+        await sendRequest(p, e.target.m.value, code ? cp.code : "");
+      } catch (err) { btn.disabled = false; btn.textContent = label; throw err; }
+      $("#dlg").close(); toast("Request sent to seller!"); show("requests");
     });
   }
   const [imgs, seller] = await Promise.all([getProductImages(id), getUser(p.sellerId).catch(() => null)]);
