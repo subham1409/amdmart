@@ -1,7 +1,7 @@
 // admin.js — admin UI. This is only a convenience layer: every action is enforced by
 // database.rules.json (admins/<uid> must exist), so editing this file grants nothing.
 import { db } from "../firebase.js";
-import { onUser, login, logout, isAdmin, seedCategories, verifyProduct, setAdminStatus, createCoupon, setCouponActive, deleteCoupon } from "../amdmart-db.js";
+import { onUser, login, logout, isAdmin, seedCategories, verifyProduct, setAdminStatus, createCoupon, setCouponActive, deleteCoupon } from "../amdmart-db.js?v=3";
 import { ref, onValue, remove, set, get, update } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
 
 const $ = (s) => document.querySelector(s);

@@ -5,7 +5,7 @@ import {
   addProduct, getProductImages, markSold, deleteProduct, toggleFavourite, listenFavouriteIds, sendRequest,
   setRequestStatus, listenMyRequests, listenNotifications, markNotificationRead, saveLocationPref, getLocationPref,
   getMyPhone, savePhone, updateMyProfile, changeEmail, syncEmail, checkCoupon, normCoupon
-} from "./amdmart-db.js";
+} from "./amdmart-db.js?v=3";
 import { areaDistance } from "./distances.js";
 
 const $ = (s) => document.querySelector(s);
@@ -359,19 +359,19 @@ function renderProducts() {
   const f = filtered();
   $("#grid").innerHTML = f.map(card).join("") || '<p class="empty">No products found.</p>';
 }
-// Live two-step tracker: seller decision (r.status) + admin verification (r.adminStatus). Updates by itself via the realtime listener.
-const SELLER_ST = { pending: ["Waiting for seller", "wait"], accepted: ["Seller accepted", "ok"], rejected: ["Seller rejected", "no"], cancelled: ["Cancelled by buyer", "no"] };
+// Buying requests go to the admin only (the seller just gets a heads-up notification). One live step: admin review.
 const ADMIN_ST = { pending: ["Waiting for admin", "wait"], approved: ["Admin verified", "ok"], rejected: ["Admin rejected", "no"] };
 function tracker(r) {
-  const a = r.adminStatus || "pending";
-  const s = SELLER_ST[r.status] || SELLER_ST.pending, d = ADMIN_ST[a] || ADMIN_ST.pending;
-  const confirmed = r.status === "accepted" && a === "approved";
-  const closed = r.status === "rejected" || r.status === "cancelled" || a === "rejected";
-  const msg = confirmed ? "Both confirmed. AMD Mart will share the pickup details."
-    : closed ? "This request is closed." : "Waiting for confirmation…";
-  const step = (label, [txt, cls]) => `<div class="trk-s ${cls}"><i></i><div><small>${label}</small><b>${txt}</b></div></div>`;
-  return `<div class="trk">${step("Seller", s)}${step("Admin", d)}</div><p class="trk-m ${confirmed ? "ok" : closed ? "no" : ""}">${msg}</p>`;
+  const a = r.adminStatus || "pending", cancelled = r.status === "cancelled";
+  const [txt, cls] = cancelled ? ["Cancelled by you", "no"] : (ADMIN_ST[a] || ADMIN_ST.pending);
+  const closed = cancelled || a === "rejected", ok = !closed && a === "approved";
+  const msg = closed ? "This request is closed." : ok ? "Admin verified your request. AMD Mart will contact you on WhatsApp with the next steps."
+    : "Admin will review your request and contact you on WhatsApp.";
+  return `<div class="trk" style="grid-template-columns:1fr"><div class="trk-s ${cls}"><i></i><div><small>Admin</small><b>${txt}</b></div></div></div><p class="trk-m ${ok ? "ok" : closed ? "no" : ""}">${msg}</p>`;
 }
+// My open request for a product (cancelled or admin-rejected ones don't count), so I can't request the same product again.
+const activeReq = (pid) => S.user ? S.reqs.find((r) => r.buyerId === S.user.uid && r.productId === pid && r.status !== "cancelled" && r.adminStatus !== "rejected") : null;
+const myReqHtml = (r) => `<b>Your request</b>${r.couponCode ? `<div class="hint" style="margin-top:4px">Coupon ${esc(r.couponCode)} applied · price ₹${Number(r.finalPrice).toLocaleString("en-IN")}</div>` : ""}${tracker(r)}<p class="hint">To cancel it, open the Requests tab.</p>`;
 function renderRequests() {
   if (!S.user) { $("#req-tabs").innerHTML = ""; $("#reqs").innerHTML = '<p class="empty">Log in to see your requests.</p>'; return; }
   const isSell = (r) => r.sellerId === S.user.uid;
@@ -381,13 +381,13 @@ function renderRequests() {
   const shown = S.reqs.filter((r) => S.rf === "all" || (S.rf === "selling" ? isSell(r) : !isSell(r)));
   $("#reqs").innerHTML = shown.map((r) => {
     const seller = r.sellerId === S.user.uid;
-    return `<div class="row"><b>${esc(r.productTitle)}</b> <span class="badge">${seller ? "Selling" : "Buying"}</span>
-      <div>${seller ? "From " + esc(r.buyerName) : "You requested"}${r.message ? ": " + esc(r.message) : ""}</div>
+    if (seller) return `<div class="row"><b>${esc(r.productTitle)}</b> <span class="badge">Selling</span>
+      <div>${r.status === "cancelled" ? "This request was cancelled." : "Someone made a request for your product. Admin will contact you on WhatsApp regarding it."}</div></div>`;
+    return `<div class="row"><b>${esc(r.productTitle)}</b> <span class="badge">Buying</span>
+      <div>You requested${r.message ? ": " + esc(r.message) : ""}</div>
       ${r.couponCode ? `<div class="hint" style="margin-top:4px">Coupon ${esc(r.couponCode)} applied · price ₹${Number(r.finalPrice).toLocaleString("en-IN")}</div>` : ""}
       ${tracker(r)}
-      ${r.status === "pending" ? `<div class="act">${seller
-        ? `<button class="btn sm" data-st="accepted" data-r="${r.id}">Accept</button><button class="btn sm red" data-st="rejected" data-r="${r.id}">Reject</button>`
-        : `<button class="btn sm ghost" data-st="cancelled" data-r="${r.id}">Cancel</button>`}</div>` : ""}</div>`;
+      ${r.status === "pending" && r.adminStatus !== "rejected" ? `<div class="act"><button class="btn sm ghost" data-st="cancelled" data-r="${r.id}">Cancel request</button></div>` : ""}</div>`;
   }).join("") || `<p class="empty">${S.rf === "buying" ? "You haven't sent any buying requests yet." : S.rf === "selling" ? "No one has requested your products yet." : "No requests yet."}</p>`;
 }
 function renderProfile() {
@@ -414,6 +414,12 @@ const renderAll = () => {
   renderCats(); renderProducts(); renderRequests(); if (S.view === "profile") renderProfile(); renderBell(); renderFavBtn();
   const fl = $("#fav-list"); if (fl && $("#dlg").open) fl.innerHTML = favListHtml(); // keep open popup in sync
   const ml = $("#more-list"); if (ml && detailP && $("#dlg").open) ml.innerHTML = moreHtml(detailP);
+  // product page open: keep my request status live, and swap the form / status when it changes (e.g. after cancelling)
+  if (detailP && $("#dlg").open && S.user && S.user.uid !== detailP.sellerId) {
+    const r = activeReq(detailP.id), box = $("#my-req");
+    if (box && r) box.innerHTML = myReqHtml(r);
+    else if ((box && !r) || ($("#req-f") && r)) detail(detailP.id);
+  }
 };
 
 /* ---------- dialogs ---------- */
@@ -529,7 +535,7 @@ async function detail(id) {
   const p = S.products.find((x) => x.id === id) || S.mine.find((x) => x.id === id);
   if (!p) return;
   detailP = p; detailImgs = p.thumb ? [p.thumb] : [];
-  const own = S.user && S.user.uid === p.sellerId;
+  const own = S.user && S.user.uid === p.sellerId, myReq = own ? null : activeReq(id);
   // Opens instantly (thumbnail + info); full photos and seller name fill in a moment later.
   open(`<div class="dt-bar"><button class="dt-back" id="dt-back" aria-label="Back">${ic("back")}</button></div>
     <div class="gal-w"><div class="gal" id="gal">${slides(p.thumb ? [p.thumb] : [])}</div><div class="gdots" id="gdots"></div></div>
@@ -546,7 +552,8 @@ async function detail(id) {
     <p class="dt-desc">${esc(p.description) || "No description added."}</p>
     ${own ? `<div class="act" style="display:flex;gap:8px"><button class="btn" id="d-sold" ${p.status === "sold" ? "disabled" : ""}>Mark sold</button><button class="btn red" id="d-del">Delete</button></div>`
       : p.status === "sold" ? "<p><b>This item is sold.</b></p>"
-      : `<form id="req-f"><textarea name="m" rows="2" maxlength="500" placeholder="Message to seller (optional)"></textarea>
+      : myReq ? `<div class="row" id="my-req">${myReqHtml(myReq)}</div>`
+      : `<form id="req-f"><textarea name="m" rows="2" maxlength="500" placeholder="Note for admin (optional)"></textarea>
         <div class="cpn"><input id="cpn-i" placeholder="Enter coupon code" autocomplete="off" autocapitalize="characters" maxlength="20"><button type="button" class="btn ghost sm" id="cpn-v">Verify</button></div>
         <small id="cpn-m" class="cpn-m hidden"></small>
         <button class="btn">Request to Buy</button></form>`}
@@ -569,12 +576,16 @@ async function detail(id) {
     // coupon: type a code, tap Verify, and the price shown here drops by the discount
     const basePrice = $("#d-price").innerHTML, cpnI = $("#cpn-i"), cpnV = $("#cpn-v"), cpnM = $("#cpn-m");
     let cp = null;
+    // one coupon use per account: your own earlier requests already show which codes you used
+    const COUPON_LIMIT_MSG = "You have reached the maximum use limit of this coupon.";
+    const usedBefore = (raw) => { const c = normCoupon(raw); return !!c && !!S.user && S.reqs.some((r) => r.buyerId === S.user.uid && r.couponCode === c); };
     const cpnMsg = (txt, cls = "") => { cpnM.textContent = txt; cpnM.className = "cpn-m " + cls; cpnM.classList.toggle("hidden", !txt); };
     const cpnReset = () => { cp = null; $("#d-price").innerHTML = basePrice; cpnMsg(""); };
     cpnI.oninput = () => { if (cp || cpnM.textContent) cpnReset(); };
     cpnV.onclick = async () => {
       if (!need()) return;
       if (!cpnI.value.trim()) return cpnMsg("Enter a coupon code first.", "no");
+      if (usedBefore(cpnI.value)) { cpnReset(); return cpnMsg(COUPON_LIMIT_MSG, "no"); }
       cpnV.disabled = true; cpnV.textContent = "Checking…";
       try {
         cp = await checkCoupon(cpnI.value, p.price);
@@ -587,7 +598,9 @@ async function detail(id) {
     $("#req-f").onsubmit = safe(async (e) => {
       e.preventDefault();
       if (!need()) return;
+      if (activeReq(id)) throw new Error("You already have a request for this product. Check the Requests tab.");
       const code = cpnI.value.trim();
+      if (code && usedBefore(code)) throw new Error(COUPON_LIMIT_MSG);
       if (code && (!cp || cp.code !== normCoupon(code))) throw new Error("Tap Verify to apply your coupon, or clear the code.");
       const btn = e.target.querySelector(".btn:not(.ghost)"), label = btn.textContent;
       btn.disabled = true; btn.textContent = "Sending…";   // instant feedback, and no double taps

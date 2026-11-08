@@ -221,8 +221,8 @@ export const verifyProduct = (pid, v = true) => update(ref(db, `products/${pid}`
 export async function setAdminStatus(rid, status, buyerId, sellerId, title) {
   await update(ref(db, `requests/${rid}`), { adminStatus: status, adminUpdatedAt: Date.now() });
   const word = status === "approved" ? "verified" : status === "rejected" ? "rejected" : status;
-  await Promise.all([...new Set([buyerId, sellerId].filter(Boolean))].map((u) =>
-    notify(u, "request", `Request ${word} by admin`, title || "", { requestId: rid })));
+  // only the buyer is told; the seller is contacted by the admin on WhatsApp
+  if (buyerId) await notify(buyerId, "request", `Request ${word} by admin`, title || "", { requestId: rid });
 }
 
 /* ---------------- FAVOURITES ---------------- */
@@ -253,7 +253,7 @@ export async function checkCoupon(raw, price) {
     c = s.exists() ? s.val() : null; mine = m.exists();
   } catch (e) { throw new Error(e.message === "Please log in first." ? e.message : "Couldn't check the coupon. Please try again."); }
   if (!c || c.active === false) throw new Error("This coupon code isn't valid.");
-  if (mine) throw new Error("You have already used this coupon.");
+  if (mine) throw new Error("You have reached the maximum use limit of this coupon.");
   const maxUses = Number(c.maxUses) || 0, used = Number(c.used) || 0;
   if (used >= maxUses) throw new Error("This coupon has reached its usage limit.");
   const discount = couponDiscount(c, price);
@@ -308,14 +308,15 @@ export async function sendRequest(product, message = "", couponCode = "") {
   await Promise.all([
     set(ref(db, `userRequests/${me}/${rid}`), true),
     set(ref(db, `userRequests/${product.sellerId}/${rid}`), true),
-    notify(product.sellerId, "request", "New buying request", `${name} wants "${product.title}"`, { requestId: rid })
+    // the seller only hears that someone asked; no buyer name or details. The admin takes it from here on WhatsApp.
+    notify(product.sellerId, "request", "Someone requested your product",
+      `Someone made a request for your product "${String(product.title).slice(0, 100)}". Admin will contact you on WhatsApp regarding it.`, { requestId: rid })
   ]);
   return rid;
 }
-// Seller: "accepted" | "rejected". Buyer: "cancelled".
-export async function setRequestStatus(rid, status, otherUid, title) {
+// Buyer only: "cancelled". (Requests go to the admin, so the seller is not asked and not notified.)
+export async function setRequestStatus(rid, status) {
   await set(ref(db, `requests/${rid}/status`), status);
-  await notify(otherUid, "request", `Request ${status}`, title || "", { requestId: rid });
 }
 // Real-time list of all requests I'm part of (as buyer or seller).
 export function listenMyRequests(cb) {
