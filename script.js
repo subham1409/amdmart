@@ -5,7 +5,7 @@ import {
   addProduct, getProductImages, markSold, deleteProduct, toggleFavourite, listenFavouriteIds, sendRequest,
   setRequestStatus, listenMyRequests, listenNotifications, markNotificationRead, saveLocationPref, getLocationPref,
   getMyPhone, savePhone, updateMyProfile, changeEmail, syncEmail, checkCoupon, normCoupon
-} from "./amdmart-db.js?v=3";
+} from "./amdmart-db.js?v=4";
 import { areaDistance } from "./distances.js";
 
 const $ = (s) => document.querySelector(s);

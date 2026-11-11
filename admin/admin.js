@@ -1,12 +1,12 @@
 // admin.js — admin UI. This is only a convenience layer: every action is enforced by
 // database.rules.json (admins/<uid> must exist), so editing this file grants nothing.
 import { db } from "../firebase.js";
-import { onUser, login, logout, isAdmin, seedCategories, verifyProduct, setAdminStatus, createCoupon, setCouponActive, deleteCoupon } from "../amdmart-db.js?v=3";
+import { onUser, login, logout, isAdmin, seedCategories, verifyProduct, setAdminStatus, createCoupon, setCouponActive, deleteCoupon } from "../amdmart-db.js?v=4";
 import { ref, onValue, remove, set, get, update } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const D = { products: [], requests: [], users: [], categories: [], coupons: [] };
+const D = { products: [], requests: [], users: [], categories: [], coupons: [], deals: [] };
 let tab = "products", started = false;
 
 const list = (snap) => { const a = []; snap.forEach((c) => { a.push({ id: c.key, ...c.val() }); }); return a; };
@@ -75,6 +75,7 @@ function start() {
   onValue(ref(db, "products"), (s) => { D.products = list(s); draw(); });
   onValue(ref(db, "requests"), (s) => { D.requests = list(s); draw(); });
   onValue(ref(db, "categories"), (s) => { D.categories = list(s).sort((a, b) => a.order - b.order); draw(); });
+  onValue(ref(db, "deals"), (s) => { D.deals = list(s).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); draw(); });
   onValue(ref(db, "coupons"), (s) => { D.coupons = list(s).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); draw(); });
   onValue(ref(db, "users"), async (s) => {
     const users = list(s);
@@ -84,6 +85,15 @@ function start() {
     }));
     D.users = users; draw();
   });
+}
+
+const money = (n) => "₹" + (Math.round(Number(n) * 100) / 100).toLocaleString("en-IN");
+// The three prices of a request: what seller gets, website (listed) price, and what the buyer pays (after coupon).
+function reqPrices(r, p) {
+  const web = Number(r.listedPrice ?? p.price);
+  const buyer = r.couponCode && r.finalPrice != null ? Number(r.finalPrice) : web;
+  const seller = p.sellerPrice != null ? Number(p.sellerPrice) : null;
+  return { web: isNaN(web) ? null : web, buyer: isNaN(buyer) ? null : buyer, seller };
 }
 
 function draw() {
@@ -104,21 +114,31 @@ function draw() {
         + (u.email ? `<br><small>${esc(u.email)}</small>` : "") + (u.college ? `<br><small>${esc(u.college)}</small>` : "")
         + (role ? `<br>${waButton(u.phone, role, product)}` : "");
     };
-    const sellerSt = { pending: "Pending", accepted: "Accepted", rejected: "Rejected", cancelled: "Cancelled" };
     const adminSt = { pending: "Pending", approved: "Verified", rejected: "Rejected" };
     const reqs = [...D.requests].sort((a, b) => b.createdAt - a.createdAt);
-    h = `<table><tr><th>Product</th><th>Buyer</th><th>Seller</th><th>Seller says</th><th>Admin</th><th>Date</th><th></th></tr>${reqs.map((r) => {
+    h = `<table><tr><th>Product</th><th>Buyer</th><th>Seller</th><th>Status</th><th>Date</th><th></th></tr>${reqs.map((r) => {
       const p = D.products.find((x) => x.id === r.productId) || {};
       const a = r.adminStatus || "pending";
-      return `<tr><td><b>${esc(r.productTitle)}</b>${p.price ? `<br>₹${p.price}` : ""}${r.couponCode ? `<br><small>🎟 Coupon <b>${esc(r.couponCode)}</b> (${r.couponType === "flat" ? "₹" + esc(r.couponValue) : esc(r.couponValue) + "%"} off, −₹${esc(r.couponDiscount)})<br>Buyer pays ₹${esc(r.finalPrice)}</small>` : ""}${p.area || p.location ? `<br><small>${esc(p.area || p.location)}</small>` : ""}${r.message ? `<br><small>“${esc(r.message)}”</small>` : ""}</td>
+      const pr = reqPrices(r, p), deal = D.deals.find((d) => d.id === r.id);
+      const prices = `<div class="prices"><span><em>Seller price</em><b>${pr.seller != null ? money(pr.seller) : "not set"}</b></span><span><em>Website price</em><b>${pr.web != null ? money(pr.web) : "—"}</b></span><span><em>Buyer pays</em><b class="buy">${pr.buyer != null ? money(pr.buyer) : "—"}</b></span></div>`;
+      return `<tr><td><b>${esc(r.productTitle)}</b>${prices}${r.couponCode ? `<small>🎟 Coupon <b>${esc(r.couponCode)}</b> (${r.couponType === "flat" ? "₹" + esc(r.couponValue) : esc(r.couponValue) + "%"} off, −₹${esc(r.couponDiscount)})</small>` : ""}${p.area || p.location ? `<br><small>${esc(p.area || p.location)}</small>` : ""}${r.message ? `<br><small>“${esc(r.message)}”</small>` : ""}</td>
       <td>${who(r.buyerId, r.buyerName, "buyer", r.productTitle || p.title)}</td><td>${who(r.sellerId, undefined, "seller", r.productTitle || p.title)}</td>
-      <td><span class="tag">${sellerSt[r.status] || r.status}</span></td><td><span class="tag">${adminSt[a] || a}</span></td>
+      <td><span class="tag">${r.status === "cancelled" ? "Cancelled by buyer" : adminSt[a] || a}</span>${deal ? `<br><span class="tag ok">Deal done ✔</span>` : ""}</td>
       <td>${new Date(r.createdAt).toLocaleString()}</td>
-      <td><button data-areq="${r.id}" data-ast="approved" ${a === "approved" ? "disabled" : ""}>Verify</button><button class="red" data-areq="${r.id}" data-ast="rejected" ${a === "rejected" ? "disabled" : ""}>Reject</button><button class="gray" data-delr="${r.id}">Delete</button></td></tr>`;
-    }).join("") || '<tr><td colspan="7">No requests yet.</td></tr>'}</table>`;
+      <td><button data-areq="${r.id}" data-ast="approved" ${a === "approved" ? "disabled" : ""}>Verify</button><button class="red" data-areq="${r.id}" data-ast="rejected" ${a === "rejected" ? "disabled" : ""}>Reject</button><button class="done" data-deal="${r.id}" ${deal ? "disabled" : ""}>${deal ? "Deal done ✔" : "Deal done"}</button><button class="gray" data-delr="${r.id}">Delete</button></td></tr>`;
+    }).join("") || '<tr><td colspan="6">No requests yet.</td></tr>'}</table>`;
   } else if (tab === "users") {
     h = `<table><tr><th>Name</th><th>Phone</th><th>Email</th><th>College</th><th>Joined</th></tr>${D.users.map((u) =>
       `<tr><td>${esc(u.name)}</td><td>${u.phone ? `<a href="tel:${esc(u.phone)}">${esc(u.phone)}</a>` : "—"}</td><td>${esc(u.email || "")}</td><td>${esc(u.college || "")}</td><td>${new Date(u.createdAt).toLocaleDateString()}</td></tr>`).join("")}</table>`;
+  } else if (tab === "income") {
+    const sum = (k) => D.deals.reduce((t, d) => t + (Number(d[k]) || 0), 0);
+    const cls = (n) => (n < 0 ? "neg" : "pos");
+    h = `<table><tr><th>Date</th><th>Product</th><th>Buyer</th><th>Seller</th><th>Seller price</th><th>Website price</th><th>Coupon</th><th>Buyer paid</th><th>Income</th><th></th></tr>${D.deals.map((d) =>
+      `<tr><td>${new Date(d.createdAt).toLocaleDateString()}</td><td><b>${esc(d.productTitle || "")}</b></td><td>${esc(d.buyerName || nameOf(d.buyerId))}</td><td>${esc(d.sellerName || nameOf(d.sellerId))}</td>
+      <td>${money(d.sellerPrice)}</td><td>${money(d.listedPrice)}</td><td>${d.couponCode ? `<b>${esc(d.couponCode)}</b><br><small>−${money(d.couponDiscount)}</small>` : "—"}</td><td>${money(d.buyerPrice)}</td>
+      <td class="${cls(d.income)}">${money(d.income)}</td><td><button class="red" data-deld="${esc(d.id)}">Remove</button></td></tr>`).join("") || '<tr><td colspan="10">No completed deals yet. Press “Deal done” in the Requests tab.</td></tr>'}
+      <tfoot><tr><td colspan="4">Total (${D.deals.length} deal${D.deals.length === 1 ? "" : "s"})</td><td>${money(sum("sellerPrice"))}</td><td>${money(sum("listedPrice"))}</td><td></td><td>${money(sum("buyerPrice"))}</td><td class="${cls(sum("income"))}">${money(sum("income"))}</td><td></td></tr></tfoot></table>
+      <p style="margin-top:14px;font-size:18px"><b>Total income: <span class="${cls(sum("income"))}">${money(sum("income"))}</span></b></p>`;
   } else if (tab === "coupons") {
     const state = (c) => c.active === false ? "Disabled" : (Number(c.used) || 0) >= (Number(c.maxUses) || 0) ? "Used up" : "Active";
     h = `<form class="inline" id="cpn-f"><input name="code" placeholder="Coupon code (e.g. WELCOME10)" maxlength="20" required style="text-transform:uppercase">
@@ -139,11 +159,11 @@ function draw() {
 
 /* ---------- edit product (admin) ---------- */
 const CONDITIONS = ["New", "Like New", "Used"];
-let editId = null, editBase = 0;
+let editId = null, editBase = 0, editApplied = false;
 const rupee = (n) => "₹" + (Math.round(n * 100) / 100).toLocaleString("en-IN");
 function openEdit(id) {
   const p = D.products.find((x) => x.id === id); if (!p) return;
-  const f = $("#ed-f"); editId = id; editBase = Number(p.price) || 0;
+  const f = $("#ed-f"); editId = id; editBase = Number(p.sellerPrice ?? p.price) || 0; editApplied = false;
   f.elements.title.value = p.title || ""; f.price.value = p.price ?? ""; f.originalPrice.value = p.originalPrice ?? "";
   f.location.value = p.area || p.location || ""; f.description.value = p.description || "";
   f.status.value = p.status === "sold" ? "sold" : "active"; f.verified.checked = !!p.verified;
@@ -159,7 +179,7 @@ function applyCommission() {
   if (!(v >= 0) || f.cval.value === "") return alert("Enter the commission first.");
   const add = f.ctype.value === "pct" ? editBase * v / 100 : v;
   const price = Math.round(editBase + add);
-  f.price.value = price;
+  f.price.value = price; editApplied = true;
   $("#ed-prev").textContent = `Buyer pays ${rupee(price)} · seller gets ${rupee(editBase)} · your commission ${rupee(price - editBase)}`;
 }
 async function saveEdit(f) {
@@ -175,16 +195,63 @@ async function saveEdit(f) {
     description: f.description.value.trim(), location: area, area, status: f.status.value,
     verified: f.verified.checked, updatedAt: Date.now()
   };
+  if (editApplied) upd.sellerPrice = editBase;   // remember what the seller gets, for income reports
   if (area !== (p.area || p.location || "")) { upd.lat = null; upd.lng = null; }   // old coordinates no longer match the new area
   await update(ref(db, `products/${editId}`), upd);
   $("#ed").close();
 }
 
+/* ---------- deal done ---------- */
+let dealId = null, dealBuyer = 0;
+function openDeal(id) {
+  const r = D.requests.find((x) => x.id === id); if (!r) return;
+  const p = D.products.find((x) => x.id === r.productId) || {}, pr = reqPrices(r, p);
+  if (pr.buyer == null) return alert("Can't work out the buyer's price for this request.");
+  dealId = id; dealBuyer = pr.buyer;
+  const f = $("#dl-f");
+  $("#dl-title").textContent = r.productTitle || p.title || "Product";
+  $("#dl-web").textContent = money(pr.web ?? pr.buyer); $("#dl-buyer").textContent = money(pr.buyer);
+  $("#dl-cpn").textContent = r.couponCode ? `(coupon ${r.couponCode}, −${money(r.couponDiscount)})` : "";
+  f.sellerPrice.value = pr.seller ?? ""; f.markSold.checked = p.status !== "sold"; f.markSold.disabled = !p.id;
+  previewDeal(); $("#dl").showModal();
+}
+function previewDeal() {
+  const v = $("#dl-f").sellerPrice.value, el = $("#dl-prev");
+  if (v === "") { el.textContent = ""; return; }
+  const inc = dealBuyer - Number(v);
+  el.textContent = `Your income on this deal: ${money(inc)}`; el.style.color = inc < 0 ? "#c2453b" : "#1d6f3f";
+}
+async function saveDeal(f) {
+  const r = D.requests.find((x) => x.id === dealId); if (!r) throw new Error("Request not found.");
+  if (D.deals.some((d) => d.id === dealId)) throw new Error("This deal is already recorded.");
+  const p = D.products.find((x) => x.id === r.productId) || {}, pr = reqPrices(r, p);
+  const sellerPrice = Number(f.sellerPrice.value);
+  if (f.sellerPrice.value === "" || !(sellerPrice >= 0) || sellerPrice > 10000000) throw new Error("Enter the seller's price.");
+  const deal = {
+    requestId: r.id, productId: r.productId || "", productTitle: (r.productTitle || p.title || "").slice(0, 100),
+    buyerId: r.buyerId || "", buyerName: nameOf(r.buyerId, r.buyerName).slice(0, 60),
+    sellerId: r.sellerId || "", sellerName: nameOf(r.sellerId).slice(0, 60),
+    sellerPrice, listedPrice: pr.web ?? pr.buyer, buyerPrice: pr.buyer, income: pr.buyer - sellerPrice, createdAt: Date.now()
+  };
+  if (r.couponCode) { deal.couponCode = r.couponCode; deal.couponDiscount = Number(r.couponDiscount) || 0; }
+  const up = { [`deals/${r.id}`]: deal };
+  if (p.id) {
+    if (p.sellerPrice == null) up[`products/${p.id}/sellerPrice`] = sellerPrice;
+    if (f.markSold.checked && p.status !== "sold") { up[`products/${p.id}/status`] = "sold"; up[`products/${p.id}/updatedAt`] = Date.now(); }
+  }
+  await update(ref(db), up);
+  $("#dl").close();
+}
+
+document.addEventListener("input", (e) => { if (e.target.closest("#dl-f")) previewDeal(); });
 document.addEventListener("click", run(async (e) => {
   const t = e.target.closest("button"); if (!t) return;
   if (t.dataset.t) { tab = t.dataset.t; document.querySelectorAll(".tabs button").forEach((b) => b.classList.toggle("on", b === t)); draw(); }
   else if (t.dataset.ver) await verifyProduct(t.dataset.ver, t.dataset.val === "true");
   else if (t.dataset.editp) openEdit(t.dataset.editp);
+  else if (t.dataset.deal) openDeal(t.dataset.deal);
+  else if (t.id === "dl-cancel") $("#dl").close();
+  else if (t.dataset.deld) { if (confirm("Remove this deal from income?")) await remove(ref(db, `deals/${t.dataset.deld}`)); }
   else if (t.id === "ed-cancel") $("#ed").close();
   else if (t.id === "ed-apply") applyCommission();
   else if (t.dataset.delp) { if (confirm("Delete this product?")) await update(ref(db), { [`products/${t.dataset.delp}`]: null, [`productImages/${t.dataset.delp}`]: null }); }
@@ -203,6 +270,7 @@ document.addEventListener("submit", run(async (e) => {
   e.preventDefault();
   if (e.target.id === "login-f") { const d = Object.fromEntries(new FormData(e.target)); await login(d.email, d.password); }
   if (e.target.id === "ed-f") await saveEdit(e.target);
+  if (e.target.id === "dl-f") await saveDeal(e.target);
   if (e.target.id === "cpn-f") { await createCoupon(Object.fromEntries(new FormData(e.target))); e.target.reset(); }
   if (e.target.id === "cat-f") {
     const name = e.target.name.value.trim();

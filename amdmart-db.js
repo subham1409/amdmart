@@ -164,15 +164,19 @@ async function prepare(file, wantThumb) {
   if (src.close) src.close();
   return { full, thumb };
 }
+// Every new listing is shown at the seller's price + 10% (100 → 110). Done here so the seller never sees or does anything extra.
+export const MARKUP_PCT = 10;
 export async function addProduct(data, files = []) {
   const me = uid();
+  const price = Math.round(Number(data.price) * (100 + MARKUP_PCT) / 100);
+  if (!(price >= 0) || price > 10000000) throw new Error("Enter a valid price.");
   const pid = push(ref(db, "products")).key;
   const picks = [...files].slice(0, 3);
   const done = await Promise.all(picks.map((f, i) => prepare(f, i === 0)));
   const full = done.map((d) => d.full);
   await set(ref(db, `products/${pid}`), {
     title: data.title, description: data.description || "",
-    price: Number(data.price), originalPrice: Number(data.originalPrice || data.price),
+    price, originalPrice: Number(data.originalPrice || price),
     category: data.category, condition: data.condition || "Used",
     location: data.area || data.location || "",
     area: data.area || data.location || "",

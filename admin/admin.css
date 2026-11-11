@@ -48,3 +48,18 @@ td .wa svg{flex:none}
 td .wa.wa-off{background:#e3e6e9;color:#777;box-shadow:none;cursor:not-allowed}
 td .wa.wa-off svg path{fill:#999}
 @media(max-width:700px){td a.wa span,td .wa.wa-off span{display:none}td a.wa,td .wa.wa-off{padding:5px}}
+/* ===== Deal done dialog + Income tab ===== */
+dialog#dl{margin:auto;border:0;border-radius:16px;padding:20px;width:min(94vw,420px);max-height:92vh;overflow:auto;box-shadow:0 20px 60px #0004}
+dialog#dl::backdrop{background:#2a344280}
+#dl-f{margin-top:0;gap:10px}
+#dl-f label{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600;color:var(--o)}
+#dl-f input{width:100%;color:var(--d)}
+#dl-f label.chk{flex-direction:row;align-items:center;gap:8px}#dl-f label.chk input{width:auto}
+#dl-prev{font-weight:600;min-height:16px}
+td button.done{background:linear-gradient(135deg,#2e9e5b,#1d6f3f)}
+.prices{display:flex;flex-direction:column;gap:2px;margin:4px 0;font-size:13px}
+.prices span{display:flex;justify-content:space-between;gap:12px}.prices em{font-style:normal;color:#777}
+.prices b.buy{color:#1d6f3f}
+.tag.ok{background:#d9f3e3;color:#1d6f3f}
+tfoot td{font-weight:700;background:#f3f6f8;border-top:2px solid #d5dbe1}
+.pos{color:#1d6f3f;font-weight:700}.neg{color:#c2453b;font-weight:700}

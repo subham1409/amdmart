@@ -17,7 +17,7 @@
 <p id="denied" class="box hidden">⛔ This account is not an admin. Admins are added manually in the Firebase Console at <code>admins/&lt;uid&gt;: true</code>.</p>
 
 <main id="panel" class="hidden">
-  <nav class="tabs"><button data-t="products" class="on">Products</button><button data-t="requests">Requests</button><button data-t="users">Users</button><button data-t="categories">Categories</button><button data-t="coupons">Coupons</button></nav>
+  <nav class="tabs"><button data-t="products" class="on">Products</button><button data-t="requests">Requests</button><button data-t="users">Users</button><button data-t="categories">Categories</button><button data-t="coupons">Coupons</button><button data-t="income">Income</button></nav>
   <div id="stats" class="stats"></div>
   <div id="content" class="box"></div>
 </main>
@@ -51,6 +51,20 @@
       <label class="chk"><input name="verified" type="checkbox"> Verified</label>
     </div>
     <div class="acts"><button type="button" class="gray" id="ed-cancel">Cancel</button><button>Save changes</button></div>
+  </form>
+</dialog>
+<dialog id="dl">
+  <form id="dl-f">
+    <h2>Deal done</h2>
+    <div class="comm">
+      <b id="dl-title"></b>
+      <span>Website price: <strong id="dl-web">₹0</strong></span>
+      <span>Buyer pays: <strong id="dl-buyer">₹0</strong> <small id="dl-cpn"></small></span>
+    </div>
+    <label>Seller's price (₹) – what the seller receives<input name="sellerPrice" type="number" min="0" max="10000000" step="1" required></label>
+    <small id="dl-prev"></small>
+    <label class="chk"><input name="markSold" type="checkbox" checked> Mark product as sold</label>
+    <div class="acts"><button type="button" class="gray" id="dl-cancel">Cancel</button><button>Save deal</button></div>
   </form>
 </dialog>
 <script type="module" src="admin.js"></script>
