@@ -92,7 +92,8 @@ const money = (n) => "₹" + (Math.round(Number(n) * 100) / 100).toLocaleString(
 function reqPrices(r, p) {
   const web = Number(r.listedPrice ?? p.price);
   const buyer = r.couponCode && r.finalPrice != null ? Number(r.finalPrice) : web;
-  const seller = p.sellerPrice != null ? Number(p.sellerPrice) : null;
+  // seller price = what the seller typed when listing. Saved as sellerPrice once admin changes the listed price; until then products.price is still the seller's own price.
+  const sp = p.sellerPrice ?? p.price, seller = sp != null && !isNaN(Number(sp)) ? Number(sp) : null;
   return { web: isNaN(web) ? null : web, buyer: isNaN(buyer) ? null : buyer, seller };
 }
 
@@ -196,6 +197,7 @@ async function saveEdit(f) {
     verified: f.verified.checked, updatedAt: Date.now()
   };
   if (editApplied) upd.sellerPrice = editBase;   // remember what the seller gets, for income reports
+  else if (p.sellerPrice == null && price !== Number(p.price)) upd.sellerPrice = Number(p.price);   // first manual price change: keep the seller's original price
   if (area !== (p.area || p.location || "")) { upd.lat = null; upd.lng = null; }   // old coordinates no longer match the new area
   await update(ref(db, `products/${editId}`), upd);
   $("#ed").close();
