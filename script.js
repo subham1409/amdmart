@@ -518,6 +518,7 @@ async function postDialog() {
     const ar = AREAS.find((x) => x.name === d.area);
     if (!ar) throw new Error("Please choose a pickup area.");
     d.lat = ar.lat; d.lng = ar.lng;
+    d.sellerPrice = Number(d.price);   // seller's own price, kept for admin reports
     $("#post-btn").disabled = true; $("#post-btn").textContent = "Compressing & saving…";
     try { await addProduct(d, [...f.images.files]); } finally { $("#post-btn")?.removeAttribute("disabled"); }
     $("#dlg").close(); toast("Ad published!");

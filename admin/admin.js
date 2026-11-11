@@ -87,14 +87,17 @@ function start() {
   });
 }
 
+// The storefront adds a 10% fee when a product is listed, so if the seller's own price wasn't saved, work it back from the listed price.
+const SITE_FEE = 10;
+const sellerOf = (p) => (p.sellerPrice != null ? Number(p.sellerPrice) : p.price != null ? Math.round(Number(p.price) / (1 + SITE_FEE / 100)) : null);
 const money = (n) => "₹" + (Math.round(Number(n) * 100) / 100).toLocaleString("en-IN");
 // The three prices of a request: what seller gets, website (listed) price, and what the buyer pays (after coupon).
 function reqPrices(r, p) {
   const web = Number(r.listedPrice ?? p.price);
   const buyer = r.couponCode && r.finalPrice != null ? Number(r.finalPrice) : web;
   // seller price = what the seller typed when listing. Saved as sellerPrice once admin changes the listed price; until then products.price is still the seller's own price.
-  const sp = p.sellerPrice ?? p.price, seller = sp != null && !isNaN(Number(sp)) ? Number(sp) : null;
-  return { web: isNaN(web) ? null : web, buyer: isNaN(buyer) ? null : buyer, seller };
+  const sv = sellerOf(p), seller = sv != null && !isNaN(sv) ? sv : null, est = p.sellerPrice == null;
+  return { web: isNaN(web) ? null : web, buyer: isNaN(buyer) ? null : buyer, seller, est };
 }
 
 function draw() {
@@ -121,7 +124,7 @@ function draw() {
       const p = D.products.find((x) => x.id === r.productId) || {};
       const a = r.adminStatus || "pending";
       const pr = reqPrices(r, p), deal = D.deals.find((d) => d.id === r.id);
-      const prices = `<div class="prices"><span><em>Seller price</em><b>${pr.seller != null ? money(pr.seller) : "not set"}</b></span><span><em>Website price</em><b>${pr.web != null ? money(pr.web) : "—"}</b></span><span><em>Buyer pays</em><b class="buy">${pr.buyer != null ? money(pr.buyer) : "—"}</b></span></div>`;
+      const prices = `<div class="prices"><span><em>Seller price</em><b>${pr.seller != null ? money(pr.seller) + (pr.est ? " <small>(est.)</small>" : "") : "not set"}</b></span><span><em>Website price</em><b>${pr.web != null ? money(pr.web) : "—"}</b></span><span><em>Buyer pays</em><b class="buy">${pr.buyer != null ? money(pr.buyer) : "—"}</b></span></div>`;
       return `<tr><td><b>${esc(r.productTitle)}</b>${prices}${r.couponCode ? `<small>🎟 Coupon <b>${esc(r.couponCode)}</b> (${r.couponType === "flat" ? "₹" + esc(r.couponValue) : esc(r.couponValue) + "%"} off, −₹${esc(r.couponDiscount)})</small>` : ""}${p.area || p.location ? `<br><small>${esc(p.area || p.location)}</small>` : ""}${r.message ? `<br><small>“${esc(r.message)}”</small>` : ""}</td>
       <td>${who(r.buyerId, r.buyerName, "buyer", r.productTitle || p.title)}</td><td>${who(r.sellerId, undefined, "seller", r.productTitle || p.title)}</td>
       <td><span class="tag">${r.status === "cancelled" ? "Cancelled by buyer" : adminSt[a] || a}</span>${deal ? `<br><span class="tag ok">Deal done ✔</span>` : ""}</td>
@@ -164,7 +167,7 @@ let editId = null, editBase = 0, editApplied = false;
 const rupee = (n) => "₹" + (Math.round(n * 100) / 100).toLocaleString("en-IN");
 function openEdit(id) {
   const p = D.products.find((x) => x.id === id); if (!p) return;
-  const f = $("#ed-f"); editId = id; editBase = Number(p.sellerPrice ?? p.price) || 0; editApplied = false;
+  const f = $("#ed-f"); editId = id; editBase = sellerOf(p) || 0; editApplied = false;
   f.elements.title.value = p.title || ""; f.price.value = p.price ?? ""; f.originalPrice.value = p.originalPrice ?? "";
   f.location.value = p.area || p.location || ""; f.description.value = p.description || "";
   f.status.value = p.status === "sold" ? "sold" : "active"; f.verified.checked = !!p.verified;
@@ -197,7 +200,7 @@ async function saveEdit(f) {
     verified: f.verified.checked, updatedAt: Date.now()
   };
   if (editApplied) upd.sellerPrice = editBase;   // remember what the seller gets, for income reports
-  else if (p.sellerPrice == null && price !== Number(p.price)) upd.sellerPrice = Number(p.price);   // first manual price change: keep the seller's original price
+  else if (p.sellerPrice == null && price !== Number(p.price)) upd.sellerPrice = sellerOf(p);   // first manual price change: keep the seller's original price
   if (area !== (p.area || p.location || "")) { upd.lat = null; upd.lng = null; }   // old coordinates no longer match the new area
   await update(ref(db, `products/${editId}`), upd);
   $("#ed").close();
