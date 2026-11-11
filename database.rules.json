@@ -193,8 +193,8 @@
           ".validate": "newData.isString() && newData.val().length <= 500"
         },
         "status": {
-          ".write": "auth != null && ((data.parent().child('sellerId').val() === auth.uid && newData.val().matches(/^(accepted|rejected)$/)) || (data.parent().child('buyerId').val() === auth.uid && newData.val() === 'cancelled'))",
-          ".validate": "newData.isString() && newData.val().matches(/^(pending|accepted|rejected|cancelled)$/) && (data.exists() || newData.val() === 'pending')"
+          ".write": "auth != null && data.parent().child('buyerId').val() === auth.uid && newData.val() === 'cancelled'",
+          ".validate": "newData.isString() && newData.val().matches(/^(pending|cancelled)$/) && (data.exists() || newData.val() === 'pending')"
         },
         "createdAt": {
           ".validate": "newData.isNumber()"
