@@ -504,7 +504,8 @@ async function postDialog() {
   open(`<h3>Post an Ad</h3><form id="post-f">
     <input name="title" placeholder="Title" maxlength="100" required>
     <select name="category">${cats.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join("")}</select>
-    <input name="price" type="number" min="0" placeholder="Price (₹)" required>
+    <input name="price" type="number" min="0" placeholder="Your price (₹)" required>
+    <small class="hint" id="post-fee">A ${FEE_PCT}% AMD Mart service fee is added to the price buyers see.</small>
     <input name="originalPrice" type="number" min="0" placeholder="Original price (₹, optional)">
     <select name="condition"><option>Used</option><option>Like New</option><option>New</option></select>
     <select name="area" required><option value="">Pickup area (approximate)</option>${AREAS.map((a) => `<option ${S.loc && S.loc.area === a.name ? "selected" : ""}>${esc(a.name)}</option>`).join("")}</select>
@@ -512,17 +513,25 @@ async function postDialog() {
     <textarea name="description" rows="3" placeholder="Description" maxlength="2000"></textarea>
     <input name="images" type="file" accept="image/*" multiple>
     <button class="btn" id="post-btn">Publish</button></form>`);
+  $("#post-f").elements.price.oninput = (e) => {
+    const v = e.target.value;
+    $("#post-fee").textContent = v === "" ? `A ${FEE_PCT}% AMD Mart service fee is added to the price buyers see.` : `Buyers will see ₹${webPrice(v).toLocaleString("en-IN")} (your price + ${FEE_PCT}% fee). You receive ₹${Number(v).toLocaleString("en-IN")}.`;
+  };
   $("#post-f").onsubmit = safe(async (e) => {
     e.preventDefault();
     const f = e.target, d = Object.fromEntries(new FormData(f));
     const ar = AREAS.find((x) => x.name === d.area);
     if (!ar) throw new Error("Please choose a pickup area.");
     d.lat = ar.lat; d.lng = ar.lng;
+    d.sellerPrice = Number(d.price); d.price = webPrice(d.sellerPrice);   // seller's price kept for admin; website price = +10% rounded
     $("#post-btn").disabled = true; $("#post-btn").textContent = "Compressing & saving…";
     try { await addProduct(d, [...f.images.files]); } finally { $("#post-btn")?.removeAttribute("disabled"); }
     $("#dlg").close(); toast("Ad published!");
   });
 }
+// AMD Mart fee: the website price is the seller's price + 10%, rounded to a nearby clean number.
+const FEE_PCT = 10;
+const webPrice = (sp) => { const raw = Number(sp) * (1 + FEE_PCT / 100), step = raw >= 100 ? 10 : 5; return Math.max(Math.round(raw / step) * step, 0); };
 const catName = (id) => (S.cats.find((c) => c.id === id) || {}).name || "this category";
 function moreHtml(p) {
   const list = S.products.filter((x) => x.id !== p.id && x.category === p.category && x.status !== "sold").slice(0, 8);
