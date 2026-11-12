@@ -176,7 +176,8 @@ export async function addProduct(data, files = []) {
   const full = done.map((d) => d.full);
   await set(ref(db, `products/${pid}`), {
     title: data.title, description: data.description || "",
-    price, originalPrice: Number(data.originalPrice || price),
+    price, sellerPrice: Math.round(Number(data.price)),   // seller's own price (before the +10%), used by the admin Requests/Income tabs
+    originalPrice: Number(data.originalPrice || price),
     category: data.category, condition: data.condition || "Used",
     location: data.area || data.location || "",
     area: data.area || data.location || "",
