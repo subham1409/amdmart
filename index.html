@@ -3,7 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#6c7a89">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#6c7a89" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#12161c" media="(prefers-color-scheme: dark)">
 <title>AMD Mart – Ahmedabad Students' Marketplace</title>
 <link rel="icon" href="https://i.ibb.co/tpyCskfp/75-C80-FC1-2585-45-E3-BF9-A-DBAFA069-ED0-B.png">
 <style>
@@ -330,6 +332,70 @@ dialog:not(.full) h3{padding-right:44px}
 .nlist .row{padding:9px 11px;font-size:13px;box-shadow:0 2px 6px #3542521a}
 .nlist .row div{margin-top:1px;line-height:1.3}
 @media(max-height:640px){dialog:not(.full){max-height:72vh;max-height:72dvh}}
+
+/* ===== Categories: one compact, horizontally scrollable row (Flipkart-style) ===== */
+.cats{display:flex;grid-template-columns:none;gap:4px;overflow-x:auto;overflow-y:hidden;margin:0 -16px 14px;padding:2px 12px 4px;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
+.cats::-webkit-scrollbar{display:none}
+.cat{flex:0 0 62px;width:62px;min-height:0;background:none;border:0;box-shadow:none;border-radius:12px;padding:4px 0;gap:5px;font-size:10.5px;line-height:1.15;font-weight:600;color:var(--ink);justify-content:flex-start;overflow-wrap:normal;word-break:normal}
+.cat i{width:42px;height:42px;border-radius:50%;background:var(--o2);color:var(--o);display:grid;place-items:center}
+.cat .ic{width:20px;height:20px}
+.cat{display:flex;flex-direction:column;align-items:center;text-align:center}
+.cat>:not(i){display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;max-width:100%}
+
+/* ===== Dark mode (only applies when the phone/browser is in dark mode; light mode is untouched) ===== */
+@media (prefers-color-scheme: dark){
+:root{--o:#a9b8c8;--o2:#232b36;--d:#e6ebf0;--ink:#e6ebf0;--g:#9aa7b4;--bg:#12161c;--line:#2a333e}
+html{color-scheme:dark}
+body{background:#0a0d11;color:var(--ink)}
+#app{box-shadow:0 0 40px #000a}
+#cat-bg.on{opacity:.3}
+.top{box-shadow:0 3px 10px #0008}
+.brand img{mix-blend-mode:normal;border-radius:8px}
+.loc-pill{background:#1b222b;border-color:var(--line);box-shadow:none}
+.search{background:#1b222b;border-color:var(--line);box-shadow:none}
+.search input::placeholder,form input::placeholder,form textarea::placeholder,.loc-q::placeholder{color:#7d8a98}
+.hiw{background:#1b222b;border-color:var(--line);border-left-color:#8fa1b4;box-shadow:none}
+.hiw-sub{color:#aab7c5!important}
+.hiw-tap{background:#3a495b;color:#fff!important}
+.hiw-note{background:#232b36}
+.hiw-steps p{color:var(--g)}
+.card,.row,.dt-info{background:#1b222b;border-color:var(--line);box-shadow:0 4px 14px #0006}
+.card .img,.imgw,.gal,.slide,.detail-img,.thumbs div{background-color:#262f3a}
+.price s{color:#7d8a98}
+.dist{color:#b3c1cf!important}
+.ver{background:#3a495b;color:#fff}
+.heart{background:#1b222bf0;color:var(--ink);box-shadow:0 2px 8px #0006}
+.chip,.area{background:#1b222b;border-color:var(--line);color:var(--ink)}
+.chip.on,.area.on{background:#3a495b;border-color:#3a495b;color:#fff}
+.area.on .ic{color:#fff}
+.btn{background:linear-gradient(135deg,#5b6d82,#3f4e60);color:#fff;box-shadow:none}
+.btn.ghost{background:#232b36;color:var(--ink);border-color:var(--line)}
+.btn.red{background:#c2453b;color:#fff}
+.nav{background:#161b22;border-top-color:var(--line);box-shadow:0 -8px 24px #0008}
+.nav button{color:#8b98a6}
+.fab-c{background:linear-gradient(135deg,#5b6d82,#3f4e60);border-color:#161b22;color:#fff;box-shadow:0 8px 18px #0008}
+.badge{background:#2a3441;color:var(--ink)!important}
+.trk-s{background:#232b36;border-color:var(--line)}
+.trk-s.ok{background:#16301f;border-color:#265c3a}
+.trk-s.no{background:#3a1c1a;border-color:#6b2e29}
+.trk-m.ok{color:#4cc481}.trk-m.no{color:#ff8a80}
+.c-new{background:#16301f;color:#6fd69a}.c-like{background:#18283d;color:#8bb8f0}.c-used{background:#2a3441;color:#b3c1cf}
+dialog{background:#1b222b;color:var(--ink);box-shadow:0 24px 60px #000c}
+dialog::backdrop{background:#000b}
+dialog.full{background:var(--bg)}
+.dlg-poly{background:#1b222b;color:var(--ink)}
+.x{background:#2a3441;color:#dfe6ed}
+.dt-back{background:#1b222bf0;color:var(--ink);box-shadow:0 2px 8px #0008}
+form input,form select,form textarea,.loc-q{background:#12161c;border-color:#364250;color:var(--ink)}
+form input:focus,form select:focus,form textarea:focus{outline-color:#a9b8c855}
+.loc-cur{background:#232b36}
+.loc-err{background:#3a1c1a;color:#ffb4ab}
+.cpn-m.ok{color:#4cc481}.cpn-m.no{color:#ff8a80}
+.sep{background:var(--line)}
+.or{color:var(--g)}.or:before,.or:after{background:var(--line)}
+.toast{background:#e6ebf0;color:#12161c}
+.hero{border-color:#ffffff14;box-shadow:0 16px 34px #0008}
+}
 </style>
 </head>
 <body>
