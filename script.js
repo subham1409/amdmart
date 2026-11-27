@@ -6,7 +6,7 @@ import {
   setRequestStatus, listenMyRequests, listenNotifications, markNotificationRead, saveLocationPref, getLocationPref,
   getMyPhone, savePhone, updateMyProfile, changeEmail, syncEmail, checkCoupon, normCoupon,
   googleSignIn, completeGoogleProfile, enablePush, listenPush
-} from "./amdmart-db.js?v=9";
+} from "./amdmart-db.js?v=10";
 import { areaDistance } from "./distances.js";
 
 const $ = (s) => document.querySelector(s);
@@ -430,6 +430,12 @@ const renderAll = () => {
 /* ---------- dialogs ---------- */
 const G_LOGO = '<svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>';
 let gProfilePending = false;   // true while a new Google user still has to add phone + college
+// After a successful login: a short (2 second) "logging you in" animation, then close.
+async function loginDone() {
+  const ov = publishOverlay("Logging you in…", 2);
+  await sleep(2000);
+  ov.remove(); $("#dlg").close(); toast("Welcome to AMD Mart!"); askPush();
+}
 function authDialog(mode = "login") {
   const reg = mode === "register";
   // Create account = Google only (no email typing). Login = Google or email + password.
@@ -449,14 +455,14 @@ function authDialog(mode = "login") {
     try {
       const r = await googleSignIn();
       if (r.needsProfile) googleProfileDialog(r.user);
-      else { $("#dlg").close(); toast("Welcome to AMD Mart!"); askPush(); }
+      else await loginDone();
     } finally { $("#g-btn")?.removeAttribute("disabled"); }
   });
   if (!reg) $("#auth-f").onsubmit = safe(async (e) => {
     e.preventDefault();
     const d = Object.fromEntries(new FormData(e.target));
     await login(d.email, d.password);
-    $("#dlg").close(); toast("Welcome to AMD Mart!"); askPush();
+    await loginDone();
   });
 }
 // Step 2 of Google sign-up: password, name, mobile number and college (all required). The email comes from Google.
@@ -551,7 +557,7 @@ function phoneDialog(onDone) {
 const CLOTH_CATS = ["shoes-clothes", "traditional"];   // categories that ask for male/female + size
 const SIZES = ["XS", "S", "M", "L", "XL", "XXL"];
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const LOGO_URL = "https://i.ibb.co/Wp2hbzVr/71232172-DA72-42-D3-B817-511-E00-B931-F1.jpg";
+const LOGO_URL = "https://i.ibb.co/tpyCskfp/75-C80-FC1-2585-45-E3-BF9-A-DBAFA069-ED0-B.png";
 async function postDialog() {
   if (!need()) return;
   if (!(await getMyPhone())) return phoneDialog(postDialog);
@@ -605,11 +611,11 @@ async function postDialog() {
   });
 }
 // Full-screen "publishing" animation with the AMD Mart logo (lives inside the dialog so it sits above it)
-function publishOverlay() {
+function publishOverlay(text = "Publishing your product…", secs = 3.2) {
   const ov = document.createElement("div");
   ov.className = "pub-ov";
   ov.innerHTML = `<div class="pub-c"><div class="pub-ring"></div><img src="${LOGO_URL}" alt="AMD Mart"><svg class="pub-ok" viewBox="0 0 52 52"><path d="M14 27l8 8 16-17"/></svg></div>
-    <h4>AMD <span>Mart</span></h4><p>Publishing your product…</p><div class="pub-bar"><i></i></div>`;
+    <h4>AMD <span>Mart</span></h4><p>${text}</p><div class="pub-bar"><i style="animation-duration:${secs}s"></i></div>`;
   dlgEl.appendChild(ov);
   return ov;
 }

@@ -7,8 +7,8 @@
 <meta name="theme-color" content="#6c7a89" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#12161c" media="(prefers-color-scheme: dark)">
 <title>AMD Mart – Ahmedabad Students' Marketplace</title>
-<link rel="icon" href="https://i.ibb.co/Wp2hbzVr/71232172-DA72-42-D3-B817-511-E00-B931-F1.jpg">
-<link rel="apple-touch-icon" href="https://i.ibb.co/Wp2hbzVr/71232172-DA72-42-D3-B817-511-E00-B931-F1.jpg">
+<link rel="icon" href="https://i.ibb.co/tpyCskfp/75-C80-FC1-2585-45-E3-BF9-A-DBAFA069-ED0-B.png">
+<link rel="apple-touch-icon" href="https://i.ibb.co/tpyCskfp/75-C80-FC1-2585-45-E3-BF9-A-DBAFA069-ED0-B.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="AMD Mart">
@@ -428,7 +428,8 @@ form input:focus,form select:focus,form textarea:focus{outline-color:#a9b8c855}
 .cloth{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--line);border-radius:14px;font-size:13px;color:var(--ink)}
 .pills{display:flex;flex-wrap:wrap;gap:8px}
 .sell-f .pills label{flex-direction:row;gap:0}
-.pills input{position:absolute;opacity:0;pointer-events:none}
+.sell-f .pills label{position:relative}.sell-f .pills input{position:absolute;left:0;top:0;width:1px;height:1px;padding:0;margin:0;border:0;opacity:0;pointer-events:none}
+dialog.full{overflow-x:hidden}
 .pills span{min-width:46px;text-align:center;padding:8px 14px;border-radius:999px;border:1px solid var(--line);font-weight:600;font-size:13px;cursor:pointer;background:transparent;color:var(--ink)}
 .pills input:checked+span{background:var(--o);border-color:var(--o);color:#fff}
 @media (prefers-color-scheme:dark){.sell-back{background:#1b222bf0;color:var(--ink);box-shadow:0 2px 8px #0008}.pills input:checked+span{color:#12161c}}
@@ -487,7 +488,7 @@ form input:focus,form select:focus,form textarea:focus{outline-color:#a9b8c855}
 <div id="app">
   <div id="cat-bg" aria-hidden="true"></div>
   <header class="top">
-    <div class="brand"><img src="https://i.ibb.co/Wp2hbzVr/71232172-DA72-42-D3-B817-511-E00-B931-F1.jpg" alt=""><div><h1>AMD <span>Mart</span></h1></div></div>
+    <div class="brand"><img src="https://i.ibb.co/tpyCskfp/75-C80-FC1-2585-45-E3-BF9-A-DBAFA069-ED0-B.png" alt=""><div><h1>AMD <span>Mart</span></h1></div></div>
     <div class="top-r">
       <button id="loc-btn" class="loc-pill" aria-label="Change location" title="Change location"><svg class="ic"><use href="#i-pin"/></svg><span id="loc-name">Select area</span><svg class="ic chev"><use href="#i-chev"/></svg></button>
       <button id="fav-btn" class="icon-btn" aria-label="Liked products" title="Liked products"><svg class="ic"><use href="#i-heart"/></svg><i id="fav-count" class="dot cnt hidden"></i></button>
@@ -564,6 +565,6 @@ form input:focus,form select:focus,form textarea:focus{outline-color:#a9b8c855}
 <a id="ig" class="ig hidden" href="https://www.instagram.com/amdmart.in?srtk=N2luOG1lNnBpYTM0" target="_blank" rel="noopener" aria-label="Follow AMD Mart on Instagram for deals updates" title="Follow for deals update"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="1" class="dotf"/></svg><span class="ig-t">Follow for<br>deals update</span></a>
 <dialog id="dlg"><button class="x" id="x" aria-label="Close">✕</button><div id="dlg-body"></div></dialog>
 <div id="toast" class="toast hidden"></div>
-<script type="module" src="script.js?v=11"></script>
+<script type="module" src="script.js?v=15"></script>
 </body>
 </html>
