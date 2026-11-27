@@ -5,8 +5,8 @@ import {
   addProduct, getProductImages, markSold, deleteProduct, toggleFavourite, listenFavouriteIds, sendRequest,
   setRequestStatus, listenMyRequests, listenNotifications, markNotificationRead, saveLocationPref, getLocationPref,
   getMyPhone, savePhone, updateMyProfile, changeEmail, syncEmail, checkCoupon, normCoupon,
-  googleSignIn, completeGoogleProfile
-} from "./amdmart-db.js?v=7";
+  googleSignIn, completeGoogleProfile, enablePush, listenPush
+} from "./amdmart-db.js?v=8";
 import { areaDistance } from "./distances.js";
 
 const $ = (s) => document.querySelector(s);
@@ -449,14 +449,14 @@ function authDialog(mode = "login") {
     try {
       const r = await googleSignIn();
       if (r.needsProfile) googleProfileDialog(r.user);
-      else { $("#dlg").close(); toast("Welcome to AMD Mart!"); }
+      else { $("#dlg").close(); toast("Welcome to AMD Mart!"); askPush(); }
     } finally { $("#g-btn")?.removeAttribute("disabled"); }
   });
   if (!reg) $("#auth-f").onsubmit = safe(async (e) => {
     e.preventDefault();
     const d = Object.fromEntries(new FormData(e.target));
     await login(d.email, d.password);
-    $("#dlg").close(); toast("Welcome to AMD Mart!");
+    $("#dlg").close(); toast("Welcome to AMD Mart!"); askPush();
   });
 }
 // Step 2 of Google sign-up: password, name, mobile number and college (all required). The email comes from Google.
@@ -480,7 +480,7 @@ function googleProfileDialog(user) {
       const r = await completeGoogleProfile(d);
       S.me = { phone: r.phone, college: r.college };
       gProfilePending = false;
-      $("#dlg").close(); toast("Welcome to AMD Mart!"); renderAll();
+      $("#dlg").close(); toast("Welcome to AMD Mart!"); renderAll(); askPush();
     } finally { $("#gp-btn")?.removeAttribute("disabled"); }
   });
 }
@@ -721,11 +721,22 @@ function startProducts() {
 startProducts();
 renderLoc();
 
+/* ---------- push messages (Firebase Cloud Messaging) ---------- */
+// Right after a successful sign-in the browser asks "Allow notifications?". Never blocks or breaks sign-in if it fails.
+const askPush = () => { enablePush(true).catch((e) => console.warn("Push setup:", e && e.message)); };
+let pushListening = false;
+function startPushListener() {
+  if (pushListening) return; pushListening = true;
+  // while the website is open the browser doesn't show pushes itself, so show a small toast instead
+  listenPush((p) => { const n = p.notification || p.data || {}; toast([n.title, n.body].filter(Boolean).join(": ") || "New message from AMD Mart"); });
+}
+
 onUser(async (u) => {
   userUnsubs.forEach((f) => f()); userUnsubs = [];
   S.user = u; S.favs = []; S.mine = []; S.reqs = []; S.notifs = []; S.admin = false; S.me = {};
   initLocation(u);
   if (u) {
+    enablePush(false).then((t) => { if (t) startPushListener(); }).catch(() => {});   // already allowed earlier: just keep the token fresh
     loadMe();
     syncEmail().catch(() => {});
     userUnsubs.push(

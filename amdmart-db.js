@@ -1,5 +1,5 @@
 // amdmart-db.js — every AMD Mart feature reads/writes Firebase through these functions.
-import { auth, db } from "./firebase.js";
+import { app, auth, db } from "./firebase.js";
 import {
   createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut,
   onAuthStateChanged, updateProfile,
@@ -104,6 +104,44 @@ export async function completeGoogleProfile({ name, password, phone, college }) 
 }
 export const logout = () => signOut(auth);
 export const onUser = (cb) => onAuthStateChanged(auth, cb);
+
+/* ---------------- PUSH NOTIFICATIONS (Firebase Cloud Messaging) ---------------- */
+// Public "Web Push certificate" key (safe to keep here). Get it in:
+// Firebase console > Project settings > Cloud Messaging > Web configuration > "Generate key pair", then paste it below.
+export const VAPID_KEY = "BAjnWtanMTSl6NAnEYqMh90MpT3l6CuUjY8hcwIT8kuzyHROxEiFLEirOLgj_6aIbtXcc36r2pxLMfESCXHierg";
+let fcm = null;
+async function fcmLib() {
+  if (fcm) return fcm;
+  const lib = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging.js");
+  if (!(await lib.isSupported())) throw new Error("Push messages aren't supported in this browser.");
+  fcm = { lib, messaging: lib.getMessaging(app) };
+  return fcm;
+}
+// Gets this browser's push token and saves it on the signed-in account (userPrivate/<uid>/push = { token, since }).
+// since = the first time this person allowed notifications, so a "1 day after sign-in" message can be timed from it.
+// ask = true shows the browser's permission popup (do this right after sign-in); ask = false only refreshes if already allowed.
+export async function enablePush(ask = false) {
+  if (!auth.currentUser || String(VAPID_KEY).startsWith("PASTE")) return null;
+  if (!("Notification" in window) || !("serviceWorker" in navigator)) return null;
+  if (Notification.permission === "denied") return null;
+  if (Notification.permission !== "granted") {
+    if (!ask) return null;
+    if ((await Notification.requestPermission()) !== "granted") return null;
+  }
+  const { lib, messaging } = await fcmLib();
+  const reg = await navigator.serviceWorker.register("firebase-messaging-sw.js");
+  await navigator.serviceWorker.ready;
+  const token = await lib.getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
+  if (!token) return null;
+  const r = ref(db, `userPrivate/${uid()}/push`);
+  const cur = (await get(r)).val() || {};
+  if (cur.token !== token) await set(r, { ...cur, token, since: cur.since || Date.now() });
+  return token;
+}
+// Called when a push arrives while the website is open (the browser doesn't show it by itself then).
+export async function listenPush(cb) {
+  try { const { lib, messaging } = await fcmLib(); return lib.onMessage(messaging, cb); } catch (_) { return () => {}; }
+}
 
 // UX only (show/hide admin menu). Real enforcement is in database.rules.json.
 export async function isAdmin() {
