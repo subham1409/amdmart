@@ -416,6 +416,41 @@ form input:focus,form select:focus,form textarea:focus{outline-color:#a9b8c855}
 .toast{background:#e6ebf0;color:#12161c}
 .hero{border:0;box-shadow:0 16px 34px #0008}
 }
+
+/* ---- Sell product page ---- */
+.sell-h{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:10px;padding:calc(10px + env(safe-area-inset-top,0px)) 14px 10px;background:var(--bg);border-bottom:1px solid var(--line)}
+.sell-h h2{font-size:19px;color:var(--ink)}
+.sell-back{width:40px;height:40px;border-radius:50%;background:#fffe;box-shadow:0 2px 8px #0002;display:grid;place-items:center;color:var(--d)}
+.sell-back .ic{width:22px;height:22px;stroke-width:2.2}
+.sell-f{display:flex;flex-direction:column;gap:12px;padding:14px 16px 28px}
+.sell-f label{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:600;color:var(--ink)}
+.sell-f input:not([type=radio]),.sell-f select,.sell-f textarea{width:100%;font-weight:400}
+.cloth{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--line);border-radius:14px;font-size:13px;color:var(--ink)}
+.pills{display:flex;flex-wrap:wrap;gap:8px}
+.sell-f .pills label{flex-direction:row;gap:0}
+.pills input{position:absolute;opacity:0;pointer-events:none}
+.pills span{min-width:46px;text-align:center;padding:8px 14px;border-radius:999px;border:1px solid var(--line);font-weight:600;font-size:13px;cursor:pointer;background:transparent;color:var(--ink)}
+.pills input:checked+span{background:var(--o);border-color:var(--o);color:#fff}
+@media (prefers-color-scheme:dark){.sell-back{background:#1b222bf0;color:var(--ink);box-shadow:0 2px 8px #0008}.pills input:checked+span{color:#12161c}}
+/* ---- Publishing animation ---- */
+.pub-ov{position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:linear-gradient(165deg,#354252,#6c7a89);color:#fff;text-align:center;animation:pubIn .3s ease}
+@keyframes pubIn{from{opacity:0}to{opacity:1}}
+.pub-c{position:relative;width:132px;height:132px;display:grid;place-items:center}
+.pub-c img{width:84px;height:84px;object-fit:contain;border-radius:22px;background:#fff;padding:8px;animation:pubPulse 1.3s ease-in-out infinite;box-shadow:0 10px 30px #0004}
+.pub-ring{position:absolute;inset:0;border-radius:50%;border:4px solid #ffffff30;border-top-color:#fff;animation:pubSpin 1s linear infinite}
+@keyframes pubSpin{to{transform:rotate(360deg)}}
+@keyframes pubPulse{50%{transform:scale(1.08)}}
+.pub-ov h4{font-size:26px;letter-spacing:.5px;margin-top:6px}.pub-ov h4 span{color:#cfd8e2}
+.pub-ov p{font-size:15px;opacity:.9;min-height:22px}
+.pub-bar{width:170px;height:5px;border-radius:5px;background:#ffffff30;overflow:hidden;margin-top:6px}
+.pub-bar i{display:block;height:100%;width:0;background:#fff;border-radius:5px;animation:pubBar 3.2s ease-out forwards}
+@keyframes pubBar{to{width:100%}}
+.pub-ok{position:absolute;width:132px;height:132px;opacity:0;fill:none;stroke:#fff;stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
+.pub-ok path{stroke-dasharray:50;stroke-dashoffset:50}
+.pub-ov.done .pub-ring,.pub-ov.done img,.pub-ov.done .pub-bar{display:none}
+.pub-ov.done .pub-c{background:#ffffff1f;border-radius:50%;animation:pubPop .5s ease}
+.pub-ov.done .pub-ok{opacity:1}.pub-ov.done .pub-ok path{animation:pubDraw .6s .15s ease forwards}
+@keyframes pubDraw{to{stroke-dashoffset:0}}@keyframes pubPop{from{transform:scale(.6)}to{transform:scale(1)}}
 </style>
 </head>
 <body>
@@ -529,6 +564,6 @@ form input:focus,form select:focus,form textarea:focus{outline-color:#a9b8c855}
 <a id="ig" class="ig hidden" href="https://www.instagram.com/amdmart.in?srtk=N2luOG1lNnBpYTM0" target="_blank" rel="noopener" aria-label="Follow AMD Mart on Instagram for deals updates" title="Follow for deals update"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="1" class="dotf"/></svg><span class="ig-t">Follow for<br>deals update</span></a>
 <dialog id="dlg"><button class="x" id="x" aria-label="Close">✕</button><div id="dlg-body"></div></dialog>
 <div id="toast" class="toast hidden"></div>
-<script type="module" src="script.js?v=10"></script>
+<script type="module" src="script.js?v=11"></script>
 </body>
 </html>

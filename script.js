@@ -6,7 +6,7 @@ import {
   setRequestStatus, listenMyRequests, listenNotifications, markNotificationRead, saveLocationPref, getLocationPref,
   getMyPhone, savePhone, updateMyProfile, changeEmail, syncEmail, checkCoupon, normCoupon,
   googleSignIn, completeGoogleProfile, enablePush, listenPush
-} from "./amdmart-db.js?v=8";
+} from "./amdmart-db.js?v=9";
 import { areaDistance } from "./distances.js";
 
 const $ = (s) => document.querySelector(s);
@@ -548,33 +548,70 @@ function phoneDialog(onDone) {
     if (onDone) onDone();
   });
 }
+const CLOTH_CATS = ["shoes-clothes", "traditional"];   // categories that ask for male/female + size
+const SIZES = ["XS", "S", "M", "L", "XL", "XXL"];
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const LOGO_URL = "https://i.ibb.co/tpyCskfp/75-C80-FC1-2585-45-E3-BF9-A-DBAFA069-ED0-B.png";
 async function postDialog() {
   if (!need()) return;
   if (!(await getMyPhone())) return phoneDialog(postDialog);
   const cats = S.cats.filter((c) => c.id !== "hot-deals");
   if (!cats.length) return toast("No categories yet — ask admin to set them up.");
-  open(`<h3>Post an Ad</h3><form id="post-f">
-    <input name="title" placeholder="Title" maxlength="100" required>
-    <select name="category">${cats.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join("")}</select>
-    <input name="price" type="number" min="0" placeholder="Price (₹)" required>
-    <input name="originalPrice" type="number" min="0" placeholder="Original price (₹, optional)">
-    <select name="condition"><option>Used</option><option>Like New</option><option>New</option></select>
-    <select name="area" required><option value="">Pickup area (approximate)</option>${AREAS.map((a) => `<option ${S.loc && S.loc.area === a.name ? "selected" : ""}>${esc(a.name)}</option>`).join("")}</select>
+  open(`<div class="sell-h"><button class="sell-back" id="sell-back" type="button" aria-label="Back">${ic("back")}</button><h2>Sell product</h2></div>
+    <form id="post-f" class="sell-f">
+    <label>Title<input name="title" placeholder="e.g. Engineering Mathematics book" maxlength="100" required></label>
+    <label>Category<select name="category">${cats.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join("")}</select></label>
+    <div id="cloth-box" class="cloth hidden">
+      <b>For whom?</b>
+      <div class="pills"><label><input type="radio" name="gender" value="Male"><span>Male</span></label><label><input type="radio" name="gender" value="Female"><span>Female</span></label></div>
+      <b>Size</b>
+      <div class="pills">${SIZES.map((z) => `<label><input type="radio" name="size" value="${z}"><span>${z}</span></label>`).join("")}</div>
+    </div>
+    <label>Price (₹)<input name="price" type="number" min="0" placeholder="Your price" required></label>
+    <label>Original price (₹, optional)<input name="originalPrice" type="number" min="0" placeholder="MRP / new price"></label>
+    <label>Condition<select name="condition"><option>Used</option><option>Like New</option><option>New</option></select></label>
+    <label>Pickup area<select name="area" required><option value="">Pickup area (approximate)</option>${AREAS.map((a) => `<option ${S.loc && S.loc.area === a.name ? "selected" : ""}>${esc(a.name)}</option>`).join("")}</select></label>
     <small class="hint">Buyers only see this area, never your exact address.</small>
-    <textarea name="description" rows="3" placeholder="Description" maxlength="2000"></textarea>
-    <input name="images" type="file" accept="image/*" multiple>
-    <button class="btn" id="post-btn">Publish</button></form>`);
-  $("#post-f").onsubmit = safe(async (e) => {
+    <label>Description<textarea name="description" rows="4" placeholder="Describe your product" maxlength="2000"></textarea></label>
+    <label>Photos (up to 3)<input name="images" type="file" accept="image/*" multiple></label>
+    <button class="btn" id="post-btn">Publish</button></form>`, true);
+  dlgEl.scrollTop = 0;
+  if (!histPushed) { try { history.pushState({ d: 1 }, ""); histPushed = true; } catch (_) {} }
+  $("#sell-back").onclick = () => dlgEl.close();
+  const f = $("#post-f");
+  const syncCloth = () => {
+    const on = CLOTH_CATS.includes(f.category.value);
+    $("#cloth-box").classList.toggle("hidden", !on);
+    if (!on) f.querySelectorAll("#cloth-box input").forEach((i) => (i.checked = false));
+  };
+  f.category.onchange = syncCloth; syncCloth();
+  f.onsubmit = safe(async (e) => {
     e.preventDefault();
-    const f = e.target, d = Object.fromEntries(new FormData(f));
+    const d = Object.fromEntries(new FormData(f));
     const ar = AREAS.find((x) => x.name === d.area);
     if (!ar) throw new Error("Please choose a pickup area.");
+    if (CLOTH_CATS.includes(d.category) && !d.gender) throw new Error("Please choose Male or Female.");
+    if (!CLOTH_CATS.includes(d.category)) { delete d.gender; delete d.size; }
     d.lat = ar.lat; d.lng = ar.lng;
     d.sellerPrice = Number(d.price);   // seller's own price, kept for admin reports
-    $("#post-btn").disabled = true; $("#post-btn").textContent = "Compressing & saving…";
-    try { await addProduct(d, [...f.images.files]); } finally { $("#post-btn")?.removeAttribute("disabled"); }
-    $("#dlg").close(); toast("Ad published!");
+    $("#post-btn").disabled = true;
+    const ov = publishOverlay();
+    try {
+      await Promise.all([addProduct(d, [...f.images.files]), sleep(3200)]);   // show the animation for at least ~3 seconds
+    } catch (err) { ov.remove(); $("#post-btn")?.removeAttribute("disabled"); throw err; }
+    ov.classList.add("done"); ov.querySelector("p").textContent = "Your product is live!";
+    await sleep(1300);
+    ov.remove(); dlgEl.close(); toast("Product published!");
   });
+}
+// Full-screen "publishing" animation with the AMD Mart logo (lives inside the dialog so it sits above it)
+function publishOverlay() {
+  const ov = document.createElement("div");
+  ov.className = "pub-ov";
+  ov.innerHTML = `<div class="pub-c"><div class="pub-ring"></div><img src="${LOGO_URL}" alt="AMD Mart"><svg class="pub-ok" viewBox="0 0 52 52"><path d="M14 27l8 8 16-17"/></svg></div>
+    <h4>AMD <span>Mart</span></h4><p>Publishing your product…</p><div class="pub-bar"><i></i></div>`;
+  dlgEl.appendChild(ov);
+  return ov;
 }
 const catName = (id) => (S.cats.find((c) => c.id === id) || {}).name || "this category";
 function moreHtml(p) {
@@ -599,7 +636,7 @@ async function detail(id) {
       <div class="ir"><span>${ic("pin")}Location</span><b>${esc(p.area || p.location || "Ahmedabad")}</b></div>
       <div class="ir"><span>${ic("pin")}Distance</span><b>${esc(distText(p))}</b></div>
       <div class="ir"><span>${ic("check")}Condition</span><b><i class="cond ${condClass(p.condition || "Used")}">${esc(p.condition || "Used")}</i></b></div>
-      <div class="ir"><span>${ic("cap")}Seller's college</span><b id="d-college">…</b></div>
+      ${p.gender ? `<div class="ir"><span>${ic("tag")}For</span><b>${esc(p.gender)}</b></div>` : ""}${p.size ? `<div class="ir"><span>${ic("tag")}Size</span><b>${esc(p.size)}</b></div>` : ""}<div class="ir"><span>${ic("cap")}Seller's college</span><b id="d-college">…</b></div>
     </div>
     <h4 class="dt-h">Description</h4>
     <p class="dt-desc">${esc(p.description) || "No description added."}</p>
@@ -711,7 +748,10 @@ $("#loc-btn").onclick = locDialog;
 $("#q").oninput = (e) => { S.q = e.target.value.trim().toLowerCase(); if (S.view !== "explore") show("explore"); renderProducts(); };
 
 /* ---------- live data ---------- */
-listenCategories((c) => { S.cats = c; renderAll(); });
+// Category order shown on Home and Explore (electronics removed)
+const CAT_ORDER = ["shoes-clothes", "projects", "hostel", "traditional", "books", "iot"];
+const catRank = (id) => { const i = CAT_ORDER.indexOf(id); return i < 0 ? 99 : i; };
+listenCategories((c) => { S.cats = c.filter((x) => x.id !== "electronics").sort((a, b) => catRank(a.id) - catRank(b.id)); renderAll(); });
 let prodUnsub = null;
 function startProducts() {
   prodUnsub?.(); S.loaded = false; S.loadErr = false; renderProducts();

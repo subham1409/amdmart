@@ -108,7 +108,7 @@ export const onUser = (cb) => onAuthStateChanged(auth, cb);
 /* ---------------- PUSH NOTIFICATIONS (Firebase Cloud Messaging) ---------------- */
 // Public "Web Push certificate" key (safe to keep here). Get it in:
 // Firebase console > Project settings > Cloud Messaging > Web configuration > "Generate key pair", then paste it below.
-export const VAPID_KEY = "BAjnWtanMTSl6NAnEYqMh90MpT3l6CuUjY8hcwIT8kuzyHROxEiFLEirOLgj_6aIbtXcc36r2pxLMfESCXHierg";
+export const VAPID_KEY = "PASTE_YOUR_VAPID_KEY_HERE";
 let fcm = null;
 async function fcmLib() {
   if (fcm) return fcm;
@@ -214,9 +214,9 @@ export function listenCategories(cb) {
 // Admin-only (rules enforce it). Adds missing categories, never overwrites/deletes existing ones.
 export async function seedCategories() {
   const defaults = [
-    ["iot", "IoT & Components"], ["books", "Books & Notes"], ["shoes-clothes", "Shoes & Clothes"],
-    ["electronics", "Electronics"], ["hostel", "Hostel Essentials"], ["services", "Services"],
-    ["traditional", "Traditional Wear"], ["projects", "Projects"], ["others", "Others"],
+    ["shoes-clothes", "Shoes & Clothes"], ["projects", "Projects"], ["hostel", "Hostel Essentials"],
+    ["traditional", "Traditional Wear"], ["books", "Books & Notes"], ["iot", "IoT & Components"],
+    ["services", "Services"], ["others", "Others"],
     ["hot-deals", "Hot Deals"]
   ];
   const existing = (await get(ref(db, "categories"))).val() || {};
@@ -279,6 +279,7 @@ export async function addProduct(data, files = []) {
     price, sellerPrice,   // seller's own price (before the +10%), used by the admin Requests/Income tabs
     originalPrice: Number(data.originalPrice || price),
     category: data.category, condition: data.condition || "Used",
+    ...(data.gender ? { gender: String(data.gender) } : {}), ...(data.size ? { size: String(data.size) } : {}),
     location: data.area || data.location || "",
     area: data.area || data.location || "",
     ...(Number.isFinite(Number(data.lat)) && Number.isFinite(Number(data.lng)) ? { lat: Number(data.lat), lng: Number(data.lng) } : {}),
