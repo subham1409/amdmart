@@ -4,8 +4,9 @@ import {
   onUser, register, login, logout, isAdmin, getUser, listenCategories, listenProducts,
   addProduct, getProductImages, markSold, deleteProduct, toggleFavourite, listenFavouriteIds, sendRequest,
   setRequestStatus, listenMyRequests, listenNotifications, markNotificationRead, saveLocationPref, getLocationPref,
-  getMyPhone, savePhone, updateMyProfile, changeEmail, syncEmail, checkCoupon, normCoupon
-} from "./amdmart-db.js?v=4";
+  getMyPhone, savePhone, updateMyProfile, changeEmail, syncEmail, checkCoupon, normCoupon,
+  googleSignIn, completeGoogleProfile
+} from "./amdmart-db.js?v=6";
 import { areaDistance } from "./distances.js";
 
 const $ = (s) => document.querySelector(s);
@@ -182,9 +183,9 @@ function show(v) {
   applyTheme();
 }
 
-/* ---------- location: 2 km nearby ---------- */
+/* ---------- location: 5 km nearby ---------- */
 /* LOC-LOGIC:START */
-const RADIUS_M = 2000;
+const RADIUS_M = 5000;
 // Approximate centre point of each area (not any person's address). Add more areas here any time: ["Name", lat, lng].
 const AREAS = [
   ["Vaishnodevi", 23.107, 72.541], ["Chandkheda", 23.106, 72.585], ["Gota", 23.0975, 72.5495],
@@ -213,7 +214,7 @@ function fmtDist(m) {
   if (m < 1000) return Math.min(990, Math.round(m / 10) * 10) + " m away";
   return (m / 1000).toFixed(1) + " km away";
 }
-// Nearby = products posted in the SAME AREA as the user, plus any other product within 2 km. Same area first, then nearest.
+// Nearby = products posted in the SAME AREA as the user, plus any other product within 5 km (the same distance shown on the card). Same area first, then nearest.
 // (Not hidden until admin-verified: Explore shows them too, and the "Verified" badge still marks approved ones.)
 const sameName = (a, b) => !!a && !!b && String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
 function nearbyProducts(list, loc) {
@@ -227,8 +228,8 @@ function nearbyProducts(list, loc) {
       const km = areaDistance(loc.area, p.area || p.location);
       return { ...p, _same: same, _d: d, _dd: km != null ? km * 1000 : d };
     })
-    .filter((p) => p._same || (p._d != null && p._d <= RADIUS_M))
-    .sort((a, b) => (b._same - a._same) || ((a._d ?? 0) - (b._d ?? 0)));
+    .filter((p) => p._same || (p._dd != null && p._dd <= RADIUS_M))
+    .sort((a, b) => (b._same - a._same) || ((a._dd ?? 0) - (b._dd ?? 0)));
 }
 // Approximate distance from the user's chosen area to the product's area (uses the saved table in distances.js)
 function distText(p) {
@@ -292,7 +293,7 @@ async function useGps() {
   err.classList.add("hidden"); btn.disabled = true; btn.textContent = "Finding you…";
   try {
     const pos = await getPosition();
-    // rounded to ~100 m: enough for a 2 km search, not a home address
+    // rounded to ~100 m: enough for a 5 km search, not a home address
     const lat = +pos.coords.latitude.toFixed(3), lng = +pos.coords.longitude.toFixed(3);
     const a = nearestArea(lat, lng);
     if (a.d > 25000) throw { message: "You seem to be outside Ahmedabad. Please choose your area from the list below." };
@@ -311,8 +312,8 @@ function drawAreas(q) {
 }
 function locDialog() {
   open(`<h3>${S.loc ? "Change location" : "Choose your area"}</h3>
-    ${S.loc ? `<p class="loc-cur">${ic("pin", "o")}<b>${esc(S.loc.area)}</b><small>your area + 2 km</small></p>`
-      : '<p class="loc-sub">We show products from your area and within 2 km. No address needed.</p>'}
+    ${S.loc ? `<p class="loc-cur">${ic("pin", "o")}<b>${esc(S.loc.area)}</b><small>your area + 5 km</small></p>`
+      : '<p class="loc-sub">We show products from your area and within 5 km. No address needed.</p>'}
     <button class="btn full" id="loc-gps">${ic("target")} Use my current location</button>
     <div id="loc-err" class="loc-err hidden" role="alert"></div>
     <div class="or"><span>or select your area</span></div>
@@ -405,8 +406,12 @@ function renderProfile() {
     <h3 class="pad">Favourites</h3><div class="grid">${favs.map(card).join("") || '<p class="empty">No favourites yet.</p>'}</div>`;
 }
 function renderBell() { $("#dot").classList.toggle("hidden", !S.notifs.some((n) => !n.read)); }
+// Number badge on the heart: counts only liked products that still exist (deleted / sold ones no longer count),
+// so it always matches what the Liked Products list shows. Hidden when the number is 0.
 function renderFavBtn() {
-  $("#fav-count").classList.toggle("hidden", !S.favs.length); // red dot, same as the bell
+  const n = S.user ? favItems().length : 0, el = $("#fav-count");
+  el.textContent = n > 99 ? "99+" : String(n);
+  el.classList.toggle("hidden", !n);
 }
 const favItems = () => S.products.filter((p) => S.favs.includes(p.id));
 const favListHtml = () => favItems().map(card).join("") || '<p class="empty">No liked products yet. Tap the heart on any product to save it here.</p>';
@@ -423,14 +428,30 @@ const renderAll = () => {
 };
 
 /* ---------- dialogs ---------- */
+const G_LOGO = '<svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>';
+let gProfilePending = false;   // true while a new Google user still has to add phone + college
 function authDialog(mode = "login") {
   const reg = mode === "register";
-  open(`<h3>${reg ? "Create account" : "Login"}</h3><form id="auth-f">
-    ${reg ? '<input name="name" placeholder="Full name" required><input name="college" placeholder="College (e.g. LD College)"><input name="phone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="Mobile number (required)" pattern="[0-9+ ]{10,15}" title="Enter a valid 10-digit mobile number" required>' : ""}
+  open(`<h3>${reg ? "Create account" : "Login"}</h3>
+    <button type="button" class="gbtn" id="g-btn">${G_LOGO}Continue with Google</button>
+    ${reg ? '<p class="hint" style="margin:8px 0 0;text-align:center">Pick your Google email. Then we only ask your mobile number and college.</p>' : ""}
+    <div class="or"><span>${reg ? "or sign up with email" : "or login with email"}</span></div>
+    <form id="auth-f">
+    ${reg ? '<input name="name" placeholder="Full name" required><input name="college" placeholder="College (e.g. LD College)" maxlength="80" required><input name="phone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="Mobile number (required)" pattern="[0-9+ ]{10,15}" title="Enter a valid 10-digit mobile number" required>' : ""}
     <input name="email" type="email" placeholder="Email" required><input name="password" type="password" minlength="6" placeholder="Password (min 6)" required>
     <button class="btn">${reg ? "Sign up" : "Login"}</button></form>
-    <p style="margin-top:10px;font-size:14px">${reg ? "Have an account?" : "New here?"} <a href="#" id="sw" style="color:var(--o)">${reg ? "Login" : "Sign up"}</a></p>`);
+    <p style="margin-top:10px;font-size:14px">${reg ? "Have an account?" : "New here?"} <a href="#" id="sw" style="color:var(--o)">${reg ? "Login" : "Sign up"}</a></p>
+    ${reg ? "" : '<div class="auth-note"><b>Forgot your password?</b> No problem at all. Tap “Continue with Google” above and sign in again with the same email.</div>'}`);
   $("#sw").onclick = (e) => { e.preventDefault(); authDialog(reg ? "login" : "register"); };
+  // The Google window must open straight from the tap, so nothing is awaited before googleSignIn().
+  $("#g-btn").onclick = safe(async () => {
+    $("#g-btn").disabled = true;
+    try {
+      const r = await googleSignIn();
+      if (r.needsProfile) googleProfileDialog(r.user);
+      else { $("#dlg").close(); toast("Welcome to AMD Mart!"); }
+    } finally { $("#g-btn")?.removeAttribute("disabled"); }
+  });
   $("#auth-f").onsubmit = safe(async (e) => {
     e.preventDefault();
     const d = Object.fromEntries(new FormData(e.target));
@@ -438,6 +459,35 @@ function authDialog(mode = "login") {
     $("#dlg").close(); toast("Welcome to AMD Mart!");
   });
 }
+// Step 2 of Google sign-up: only the mobile number and college are asked (name + email come from Google). Both required.
+// Closing this popup without finishing signs the person out again, so no account is left half-made.
+function googleProfileDialog(user) {
+  gProfilePending = true;
+  open(`<h3>Almost done</h3>
+    <p class="loc-sub">Signed in as <b>${esc(user.email || "your Google account")}</b>. Add these two details to finish. Both are required.</p>
+    <form id="gp-f">
+      <input name="phone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="Mobile number" pattern="[0-9+ ]{10,15}" title="Enter a valid 10-digit mobile number" required>
+      <input name="college" placeholder="College (e.g. LD College)" maxlength="80" required>
+      <button class="btn" id="gp-btn">Finish sign up</button>
+    </form>`);
+  $("#gp-f").onsubmit = safe(async (e) => {
+    e.preventDefault();
+    const d = Object.fromEntries(new FormData(e.target));
+    $("#gp-btn").disabled = true;
+    try {
+      const r = await completeGoogleProfile(d);
+      S.me = { phone: r.phone, college: r.college };
+      gProfilePending = false;
+      $("#dlg").close(); toast("Welcome to AMD Mart!"); renderAll();
+    } finally { $("#gp-btn")?.removeAttribute("disabled"); }
+  });
+}
+dlgEl.addEventListener("close", () => {
+  if (!gProfilePending) return;
+  gProfilePending = false;
+  logout().catch(() => {});
+  toast("Sign up wasn't finished. Please sign in with Google again.");
+});
 async function loadMe() {
   const u = S.user; if (!u) return;
   try {
@@ -622,6 +672,8 @@ async function detail(id) {
 function bellDialog() {
   if (!need()) return;
   open(`<h3>Notifications</h3><div class="list nlist">${S.notifs.map((n) => `<div class="row" data-n="${n.id}" style="${n.read ? "opacity:.6" : ""}"><b>${esc(n.title)}</b><div>${esc(n.message)}</div></div>`).join("") || '<p class="empty">Nothing new.</p>'}</div>`);
+  // Opening the list counts as seeing them: mark every unread one as read so the red dot goes away.
+  S.notifs.filter((n) => !n.read).forEach((n) => markNotificationRead(n.id).catch(() => {}));
 }
 
 function favDialog() {

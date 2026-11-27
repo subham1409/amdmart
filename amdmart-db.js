@@ -3,7 +3,8 @@ import { auth, db } from "./firebase.js";
 import {
   createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut,
   onAuthStateChanged, updateProfile,
-  EmailAuthProvider, reauthenticateWithCredential, verifyBeforeUpdateEmail
+  EmailAuthProvider, reauthenticateWithCredential, verifyBeforeUpdateEmail,
+  GoogleAuthProvider, signInWithPopup
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import {
   ref, get, set, update, remove, push, query, orderByChild, equalTo,
@@ -42,6 +43,47 @@ export async function login(email, password) {
     });
   }
   return cred;
+}
+// Google sign-in / sign-up. The person just picks their Google account; the name and email come from Google.
+// Returns { user, needsProfile }: needsProfile is true until the account has a saved mobile number AND college
+// (a brand-new Google user, or an account that never finished its profile).
+export async function googleSignIn() {
+  let cred;
+  try {
+    cred = await signInWithPopup(auth, new GoogleAuthProvider());
+  } catch (e) {
+    const c = e && e.code;
+    if (c === "auth/popup-closed-by-user" || c === "auth/cancelled-popup-request") throw new Error("Google sign-in was cancelled.");
+    if (c === "auth/popup-blocked") throw new Error("Your browser blocked the Google window. Allow pop-ups for this site and try again.");
+    if (c === "auth/unauthorized-domain") throw new Error("This website isn't allowed for Google sign-in yet. (Add it in Firebase > Authentication > Settings > Authorized domains.)");
+    if (c === "auth/operation-not-allowed") throw new Error("Google sign-in isn't turned on yet. (Enable it in Firebase > Authentication > Sign-in method.)");
+    throw e;
+  }
+  const id = cred.user.uid;
+  const [prof, priv] = await Promise.all([get(ref(db, `users/${id}`)), get(ref(db, `userPrivate/${id}`))]);
+  const college = prof.exists() ? String(prof.val().college || "").trim() : "";
+  const phone = priv.exists() ? String(priv.val().phone || "").trim() : "";
+  return { user: cred.user, needsProfile: !(prof.exists() && college && phone) };
+}
+// Second step of Google sign-up: mobile number + college, both required. Name and email come from the Google account.
+export async function completeGoogleProfile({ phone, college }) {
+  const user = auth.currentUser;
+  if (!user) throw new Error("Please sign in with Google first.");
+  const id = user.uid;
+  const p = cleanPhone(phone);
+  const c = String(college || "").trim();
+  if (!c) throw new Error("College name is required.");
+  if (c.length > 80) throw new Error("College name is too long.");
+  const existing = (await get(ref(db, `users/${id}`))).val() || {};
+  const name = String(existing.name || user.displayName || (user.email || "").split("@")[0] || "Student").trim().slice(0, 60) || "Student";
+  await update(ref(db), {
+    [`users/${id}/name`]: name,
+    [`users/${id}/college`]: c,
+    [`users/${id}/createdAt`]: existing.createdAt || Date.now(),
+    [`userPrivate/${id}/email`]: String(user.email || "").slice(0, 120),
+    [`userPrivate/${id}/phone`]: p
+  });
+  return { phone: p, college: c };
 }
 export const logout = () => signOut(auth);
 export const onUser = (cb) => onAuthStateChanged(auth, cb);
@@ -164,11 +206,14 @@ async function prepare(file, wantThumb) {
   if (src.close) src.close();
   return { full, thumb };
 }
-// Every new listing is shown at the seller's price + 10% (100 → 110). Done here so the seller never sees or does anything extra.
+// Every new listing is shown at the seller's price + 10%, then rounded UP to the next multiple of 10
+// (90 → 99 → 100, 60 → 66 → 70, 100 → 110). Integer maths, so there are no decimal surprises.
+// Done here so the seller never sees or does anything extra.
 export const MARKUP_PCT = 10;
 export async function addProduct(data, files = []) {
   const me = uid();
-  const price = Math.round(Number(data.price) * (100 + MARKUP_PCT) / 100);
+  const sellerPrice = Math.round(Number(data.price));
+  const price = Math.ceil(sellerPrice * (100 + MARKUP_PCT) / 1000) * 10;
   if (!(price >= 0) || price > 10000000) throw new Error("Enter a valid price.");
   const pid = push(ref(db, "products")).key;
   const picks = [...files].slice(0, 3);
@@ -176,7 +221,7 @@ export async function addProduct(data, files = []) {
   const full = done.map((d) => d.full);
   await set(ref(db, `products/${pid}`), {
     title: data.title, description: data.description || "",
-    price, sellerPrice: Math.round(Number(data.price)),   // seller's own price (before the +10%), used by the admin Requests/Income tabs
+    price, sellerPrice,   // seller's own price (before the +10%), used by the admin Requests/Income tabs
     originalPrice: Number(data.originalPrice || price),
     category: data.category, condition: data.condition || "Used",
     location: data.area || data.location || "",
