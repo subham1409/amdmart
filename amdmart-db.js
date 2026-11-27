@@ -4,7 +4,7 @@ import {
   createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut,
   onAuthStateChanged, updateProfile,
   EmailAuthProvider, reauthenticateWithCredential, verifyBeforeUpdateEmail,
-  GoogleAuthProvider, signInWithPopup
+  GoogleAuthProvider, signInWithPopup, linkWithCredential, updatePassword
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import {
   ref, get, set, update, remove, push, query, orderByChild, equalTo,
@@ -65,25 +65,42 @@ export async function googleSignIn() {
   const phone = priv.exists() ? String(priv.val().phone || "").trim() : "";
   return { user: cred.user, needsProfile: !(prof.exists() && college && phone) };
 }
-// Second step of Google sign-up: mobile number + college, both required. Name and email come from the Google account.
-export async function completeGoogleProfile({ phone, college }) {
+// Second step of Google sign-up: password, name, mobile number and college, all required. The email comes from the Google account.
+// The password is added to the same account, so the person can later log in with Google OR with email + this password.
+// Returns { name, phone, college }.
+export async function completeGoogleProfile({ name, password, phone, college }) {
   const user = auth.currentUser;
   if (!user) throw new Error("Please sign in with Google first.");
   const id = user.uid;
+  const n = String(name || "").trim();
+  if (!n) throw new Error("Name is required.");
+  if (n.length > 60) throw new Error("Name is too long (max 60 letters).");
+  const pw = String(password || "");
+  if (pw.length < 6) throw new Error("Password must be at least 6 characters.");
   const p = cleanPhone(phone);
   const c = String(college || "").trim();
   if (!c) throw new Error("College name is required.");
   if (c.length > 80) throw new Error("College name is too long.");
+  // set the password first: if it fails, nothing else is saved and the person can fix it and try again
+  try {
+    await linkWithCredential(user, EmailAuthProvider.credential(user.email, pw));
+  } catch (e) {
+    if (e && e.code === "auth/provider-already-linked") await updatePassword(user, pw);
+    else if (e && e.code === "auth/weak-password") throw new Error("Password is too weak. Use at least 6 characters.");
+    else if (e && (e.code === "auth/email-already-in-use" || e.code === "auth/credential-already-in-use")) throw new Error("This email already has an account with a password. Please close this and use Login.");
+    else throw e;
+  }
+  await updateProfile(user, { displayName: n });
   const existing = (await get(ref(db, `users/${id}`))).val() || {};
-  const name = String(existing.name || user.displayName || (user.email || "").split("@")[0] || "Student").trim().slice(0, 60) || "Student";
+  const name2 = n;
   await update(ref(db), {
-    [`users/${id}/name`]: name,
+    [`users/${id}/name`]: name2,
     [`users/${id}/college`]: c,
     [`users/${id}/createdAt`]: existing.createdAt || Date.now(),
     [`userPrivate/${id}/email`]: String(user.email || "").slice(0, 120),
     [`userPrivate/${id}/phone`]: p
   });
-  return { phone: p, college: c };
+  return { name: name2, phone: p, college: c };
 }
 export const logout = () => signOut(auth);
 export const onUser = (cb) => onAuthStateChanged(auth, cb);

@@ -6,7 +6,7 @@ import {
   setRequestStatus, listenMyRequests, listenNotifications, markNotificationRead, saveLocationPref, getLocationPref,
   getMyPhone, savePhone, updateMyProfile, changeEmail, syncEmail, checkCoupon, normCoupon,
   googleSignIn, completeGoogleProfile
-} from "./amdmart-db.js?v=6";
+} from "./amdmart-db.js?v=7";
 import { areaDistance } from "./distances.js";
 
 const $ = (s) => document.querySelector(s);
@@ -432,15 +432,15 @@ const G_LOGO = '<svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335"
 let gProfilePending = false;   // true while a new Google user still has to add phone + college
 function authDialog(mode = "login") {
   const reg = mode === "register";
+  // Create account = Google only (no email typing). Login = Google or email + password.
   open(`<h3>${reg ? "Create account" : "Login"}</h3>
     <button type="button" class="gbtn" id="g-btn">${G_LOGO}Continue with Google</button>
-    ${reg ? '<p class="hint" style="margin:8px 0 0;text-align:center">Pick your Google email. Then we only ask your mobile number and college.</p>' : ""}
-    <div class="or"><span>${reg ? "or sign up with email" : "or login with email"}</span></div>
+    ${reg ? '<p class="hint" style="margin:10px 0 0;text-align:center">Pick your Google email. In the next step you just make a password and add your name, mobile number and college.</p>' : `
+    <div class="or"><span>or login with email</span></div>
     <form id="auth-f">
-    ${reg ? '<input name="name" placeholder="Full name" required><input name="college" placeholder="College (e.g. LD College)" maxlength="80" required><input name="phone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="Mobile number (required)" pattern="[0-9+ ]{10,15}" title="Enter a valid 10-digit mobile number" required>' : ""}
     <input name="email" type="email" placeholder="Email" required><input name="password" type="password" minlength="6" placeholder="Password (min 6)" required>
-    <button class="btn">${reg ? "Sign up" : "Login"}</button></form>
-    <p style="margin-top:10px;font-size:14px">${reg ? "Have an account?" : "New here?"} <a href="#" id="sw" style="color:var(--o)">${reg ? "Login" : "Sign up"}</a></p>
+    <button class="btn">Login</button></form>`}
+    <p style="margin-top:12px;font-size:14px">${reg ? "Have an account?" : "New here?"} <a href="#" id="sw" style="color:var(--o)">${reg ? "Login" : "Sign up"}</a></p>
     ${reg ? "" : '<div class="auth-note"><b>Forgot your password?</b> No problem at all. Tap “Continue with Google” above and sign in again with the same email.</div>'}`);
   $("#sw").onclick = (e) => { e.preventDefault(); authDialog(reg ? "login" : "register"); };
   // The Google window must open straight from the tap, so nothing is awaited before googleSignIn().
@@ -452,20 +452,22 @@ function authDialog(mode = "login") {
       else { $("#dlg").close(); toast("Welcome to AMD Mart!"); }
     } finally { $("#g-btn")?.removeAttribute("disabled"); }
   });
-  $("#auth-f").onsubmit = safe(async (e) => {
+  if (!reg) $("#auth-f").onsubmit = safe(async (e) => {
     e.preventDefault();
     const d = Object.fromEntries(new FormData(e.target));
-    if (reg) await register(d); else await login(d.email, d.password);
+    await login(d.email, d.password);
     $("#dlg").close(); toast("Welcome to AMD Mart!");
   });
 }
-// Step 2 of Google sign-up: only the mobile number and college are asked (name + email come from Google). Both required.
+// Step 2 of Google sign-up: password, name, mobile number and college (all required). The email comes from Google.
 // Closing this popup without finishing signs the person out again, so no account is left half-made.
 function googleProfileDialog(user) {
   gProfilePending = true;
   open(`<h3>Almost done</h3>
-    <p class="loc-sub">Signed in as <b>${esc(user.email || "your Google account")}</b>. Add these two details to finish. Both are required.</p>
+    <p class="loc-sub">Signed in as <b>${esc(user.email || "your Google account")}</b>. Fill these to finish. All are required.</p>
     <form id="gp-f">
+      <input name="password" type="password" minlength="6" autocomplete="new-password" placeholder="Make a password (min 6)" required>
+      <input name="name" value="${esc(user.displayName || "")}" maxlength="60" autocomplete="name" placeholder="Full name" required>
       <input name="phone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="Mobile number" pattern="[0-9+ ]{10,15}" title="Enter a valid 10-digit mobile number" required>
       <input name="college" placeholder="College (e.g. LD College)" maxlength="80" required>
       <button class="btn" id="gp-btn">Finish sign up</button>
