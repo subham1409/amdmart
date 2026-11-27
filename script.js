@@ -749,3 +749,25 @@ onUser(async (u) => {
   }
   renderAll();
 });
+/* ---------- iPhone: ask people to add the website to the Home Screen (needed for push notifications) ---------- */
+(function iosInstallTip() {
+  try {
+    const ua = navigator.userAgent;
+    const isIOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    const isSafari = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
+    const installed = window.navigator.standalone === true || matchMedia("(display-mode: standalone)").matches;
+    if (!isIOS || installed) return;
+    let seen = null; try { seen = localStorage.getItem("amd_ios_tip"); } catch (_) {}
+    if (seen && Date.now() - Number(seen) < 7 * 864e5) return;   // hidden for 7 days after closing
+    setTimeout(() => {
+      const b = document.createElement("div");
+      b.style.cssText = "position:fixed;left:12px;right:12px;bottom:14px;z-index:9999;background:#1f2933;color:#fff;border-radius:14px;padding:12px 14px;font:500 13px/1.4 system-ui,sans-serif;box-shadow:0 8px 28px #0006;display:flex;gap:10px;align-items:flex-start";
+      b.innerHTML = '<div style="flex:1">' + (isSafari
+        ? '<b>Get AMD Mart on your Home Screen</b><br>Tap the <b>Share</b> button <span style="font-size:15px">⬆︎</span> at the bottom, then <b>Add to Home Screen</b>. Open it from the icon to get offers &amp; notifications.'
+        : '<b>Get AMD Mart on your Home Screen</b><br>Open this website in <b>Safari</b>, tap <b>Share</b>, then <b>Add to Home Screen</b>.') +
+        '</div><button aria-label="Close" style="background:none;border:0;color:#fff;font-size:20px;line-height:1;padding:0 2px;cursor:pointer">×</button>';
+      b.querySelector("button").onclick = () => { try { localStorage.setItem("amd_ios_tip", String(Date.now())); } catch (_) {} b.remove(); };
+      document.body.appendChild(b);
+    }, 4000);
+  } catch (_) {}
+})();
