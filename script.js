@@ -551,7 +551,7 @@ function phoneDialog(onDone) {
 const CLOTH_CATS = ["shoes-clothes", "traditional"];   // categories that ask for male/female + size
 const SIZES = ["XS", "S", "M", "L", "XL", "XXL"];
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const LOGO_URL = "https://i.ibb.co/tpyCskfp/75-C80-FC1-2585-45-E3-BF9-A-DBAFA069-ED0-B.png";
+const LOGO_URL = "https://i.ibb.co/Wp2hbzVr/71232172-DA72-42-D3-B817-511-E00-B931-F1.jpg";
 async function postDialog() {
   if (!need()) return;
   if (!(await getMyPhone())) return phoneDialog(postDialog);

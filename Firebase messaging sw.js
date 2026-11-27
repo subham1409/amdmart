@@ -16,7 +16,7 @@ firebase.initializeApp({
 });
 
 const messaging = firebase.messaging();
-const LOGO = "https://i.ibb.co/tpyCskfp/75-C80-FC1-2585-45-E3-BF9-A-DBAFA069-ED0-B.png";
+const LOGO = "https://i.ibb.co/Wp2hbzVr/71232172-DA72-42-D3-B817-511-E00-B931-F1.jpg";
 
 // Messages from the Firebase console ("Notification" messages) are shown automatically by the browser.
 // This handler only covers "data-only" messages (title / body / url sent as data).
