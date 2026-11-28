@@ -416,14 +416,14 @@ function renderFavBtn() {
 const favItems = () => S.products.filter((p) => S.favs.includes(p.id));
 const favListHtml = () => favItems().map(card).join("") || '<p class="empty">No liked products yet. Tap the heart on any product to save it here.</p>';
 const renderAll = () => {
-  renderCats(); renderProducts(); renderRequests(); if (S.view === "profile") renderProfile(); renderBell(); renderFavBtn();
+  renderCats(); renderProducts(); renderRequests(); if (S.view === "profile") renderProfile(); renderBell(); renderFavBtn(); pruneCart();
   const fl = $("#fav-list"); if (fl && $("#dlg").open) fl.innerHTML = favListHtml(); // keep open popup in sync
   const ml = $("#more-list"); if (ml && detailP && $("#dlg").open) ml.innerHTML = moreHtml(detailP);
   // product page open: keep my request status live, and swap the form / status when it changes (e.g. after cancelling)
   if (detailP && $("#dlg").open && S.user && S.user.uid !== detailP.sellerId) {
     const r = activeReq(detailP.id), box = $("#my-req");
     if (box && r) box.innerHTML = myReqHtml(r);
-    else if ((box && !r) || ($("#req-f") && r)) detail(detailP.id);
+    else if ((box && !r) || ($("#add-cart") && r && !box)) detail(detailP.id);
   }
 };
 
@@ -557,7 +557,7 @@ function phoneDialog(onDone) {
 const CLOTH_CATS = ["shoes-clothes", "traditional"];   // categories that ask for male/female + size
 const SIZES = ["XS", "S", "M", "L", "XL", "XXL"];
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const LOGO_URL = "https://i.ibb.co/Wp2hbzVr/71232172-DA72-42-D3-B817-511-E00-B931-F1.jpg";
+const LOGO_URL = "https://i.ibb.co/tpyCskfp/75-C80-FC1-2585-45-E3-BF9-A-DBAFA069-ED0-B.png";
 async function postDialog() {
   if (!need()) return;
   if (!(await getMyPhone())) return phoneDialog(postDialog);
@@ -619,6 +619,217 @@ function publishOverlay(text = "Publishing your product…", secs = 3.2) {
   dlgEl.appendChild(ov);
   return ov;
 }
+/* ---------- shopping cart (saved in this phone's browser, so it survives a refresh) ---------- */
+const ORDER_WA = "918849110467";   // AMD Mart WhatsApp number that receives order requests
+let cart = (() => {
+  try { const a = JSON.parse(localStorage.getItem("amd_cart") || "[]"); return Array.isArray(a) ? a.filter((x) => x && typeof x.id === "string" && x.qty > 0).map((x) => ({ id: x.id, qty: Math.min(20, Math.floor(x.qty)) })) : []; }
+  catch (_) { return []; }
+})();
+// What the buyer has chosen on the cart page (kept while the page is redrawn)
+const C = { promo: null, promoText: "", note: "", lat: null, lng: null, house: "", building: "", area: "", ship: "" };
+const rs = (n) => "₹" + Number(n).toLocaleString("en-IN");
+const prodOf = (id) => S.products.find((p) => p.id === id);
+const cartCount = () => cart.reduce((n, x) => n + x.qty, 0);
+function renderCartFab() {
+  const b = $("#cartfab"); if (!b) return;
+  const n = cartCount();
+  b.classList.toggle("hidden", n === 0);
+  $("#cart-count").textContent = n > 99 ? "99+" : String(n);
+}
+function saveCart() { try { localStorage.setItem("amd_cart", JSON.stringify(cart)); } catch (_) {} renderCartFab(); }
+function addToCart(id) {
+  const it = cart.find((x) => x.id === id);
+  if (it) it.qty = Math.min(20, it.qty + 1); else cart.push({ id, qty: 1 });
+  C.promo = null; saveCart();
+}
+// Drop products that were deleted or sold since they were added
+function pruneCart() {
+  let redraw = false;
+  if (S.loaded) {
+    const n = cart.length;
+    cart = cart.filter((x) => { const p = prodOf(x.id); return p && p.status !== "sold"; });
+    if (cart.length !== n) { C.promo = null; saveCart(); redraw = true; }
+    if ($("#cart-pg") && $("#cart-pg").textContent.includes("Loading your cart")) redraw = true;
+  }
+  renderCartFab();
+  if (redraw && $("#cart-pg")) drawCart();   // only when something changed, so typing is never interrupted
+}
+const cartLines = () => cart.map((x) => ({ ...x, p: prodOf(x.id) })).filter((l) => l.p);
+const cartTotal = (lines) => lines.reduce((t, l) => t + Number(l.p.price) * l.qty, 0);
+
+/* delivery: free pickup, or Uber Parcel booked by AMD Mart */
+// 1-4 km: minimum ₹50.  Over 4 km: ₹10.50 per km, rounded to the nearest rupee (never below ₹50).
+const deliveryFee = (km) => (km <= 4 ? 50 : Math.max(50, Math.round(10.5 * km + 1e-9)));
+function sellerPoint(p) {
+  if (validCoords(p.lat, p.lng)) return { lat: p.lat, lng: p.lng };
+  const a = AREAS.find((x) => x.name === (p.area || p.location));
+  return a ? { lat: a.lat, lng: a.lng } : null;
+}
+function buyerPoint() {
+  if (C.lat != null) return { lat: C.lat, lng: C.lng };
+  const a = AREAS.find((x) => x.name === C.area);
+  return a ? { lat: a.lat, lng: a.lng } : null;
+}
+const locOk = () => C.lat != null || !!(C.house.trim() && C.building.trim() && C.area);
+// One Uber Parcel ride per seller, so the fee is worked out per seller and added up.
+function deliveryCalc(lines) {
+  const bp = buyerPoint();
+  if (!bp) return { ok: false, why: "buyer" };
+  const by = new Map();
+  for (const l of lines) {
+    const sp = sellerPoint(l.p);
+    if (!sp) return { ok: false, why: "seller" };
+    if (!by.has(l.p.sellerId)) by.set(l.p.sellerId, { sp, area: l.p.area || l.p.location || "seller" });
+  }
+  const rows = [...by.values()].map((s) => { const km = Math.round(haversine(s.sp.lat, s.sp.lng, bp.lat, bp.lng) / 100) / 10; return { area: s.area, km, fee: deliveryFee(km) }; });
+  return { ok: true, rows, total: rows.reduce((t, r) => t + r.fee, 0) };
+}
+function cartMoney(lines) {
+  const total = cartTotal(lines), disc = C.promo ? C.promo.discount : 0, after = total - disc;
+  const del = locOk() ? deliveryCalc(lines) : null;
+  const fee = C.ship === "home" && del && del.ok ? del.total : 0;
+  return { total, disc, after, del, fee, final: after + fee };
+}
+const mapsLink = () => `https://www.google.com/maps?q=${C.lat},${C.lng}`;
+
+function shipHtml(lines, m) {
+  if (!locOk()) return '<p class="hint">Add your location above to see the delivery options.</p>';
+  const d = m.del;
+  const homeTxt = d.ok
+    ? `${rs(d.total)}${d.rows.length > 1 ? `<small>${d.rows.map((r) => `${esc(r.area)} ≈ ${r.km} km · ${rs(r.fee)}`).join("<br>")}</small>` : `<small>≈ ${d.rows[0].km} km from the seller</small>`}`
+    : `<small>${d.why === "seller" ? "Seller location is missing, so the fee can't be worked out. Choose free pickup." : "Select your area (or share live location) to see the fee."}</small>`;
+  return `<h4>Delivery option</h4>
+    <label class="opt ${C.ship === "pickup" ? "on" : ""}"><input type="radio" name="ship" data-ship="pickup" ${C.ship === "pickup" ? "checked" : ""}><span><b>Free Pickup from Seller</b><em>₹0</em><small>You collect the product directly from the seller.</small></span></label>
+    <label class="opt ${C.ship === "home" ? "on" : ""} ${d.ok ? "" : "off"}"><input type="radio" name="ship" data-ship="home" ${C.ship === "home" ? "checked" : ""} ${d.ok ? "" : "disabled"}><span><b>Home Delivery via Uber Parcel</b><em>${d.ok ? rs(d.total) : ""}</em>${d.ok ? homeTxt.replace(rs(d.total), "") : homeTxt}</span></label>
+    ${C.ship === "home" ? '<p class="hint">Uber Parcel will be booked manually by AMD Mart after order confirmation. Delivery charges may be confirmed before dispatch.</p>' : ""}`;
+}
+function sumHtml(m) {
+  return `<div class="sr"><span>Product total</span><b>${rs(m.total)}</b></div>
+    ${C.promo ? `<div class="sr ok"><span>Promo discount (${esc(C.promo.code)})</span><b>− ${rs(m.disc)}</b></div><div class="sr"><span>Amount after discount</span><b>${rs(m.after)}</b></div>` : ""}
+    ${C.ship === "home" && m.del && m.del.ok ? `<div class="sr"><span>Delivery (Uber Parcel)</span><b>${rs(m.fee)}</b></div>` : C.ship === "pickup" ? '<div class="sr"><span>Delivery (free pickup)</span><b>₹0</b></div>' : ""}
+    <div class="sr fin"><span>Final payable</span><b>${rs(m.final)}</b></div>`;
+}
+function refreshShip() {
+  const lines = cartLines(), m = cartMoney(lines);
+  if (C.ship === "home" && !(m.del && m.del.ok)) C.ship = "";
+  if (!locOk()) C.ship = "";
+  const sb = $("#ship-box"), su = $("#sum-box");
+  if (sb) sb.innerHTML = shipHtml(lines, m);
+  if (su) su.innerHTML = sumHtml(m);
+}
+function drawCart() {
+  const lines = cartLines(), body = $("#dlg-body");
+  if (!body) return;
+  const st = dlgEl.scrollTop, m = cartMoney(lines);
+  let inner;
+  if (!cart.length) inner = '<div class="empty"><p>Your cart is empty.</p><div class="act"><button class="btn sm" id="cart-shop" type="button">Browse products</button></div></div>';
+  else if (!lines.length) inner = '<p class="empty">Loading your cart…</p>';
+  else inner = `
+    <div class="cbox">${lines.map((l) => `<div class="ci"><img src="${esc(l.p.thumb || "")}" alt="${esc(l.p.title)}"><div class="ci-b"><b>${esc(l.p.title)}</b><span>${rs(l.p.price)}</span>
+      <div class="qty"><button type="button" data-cq="-1" data-id="${esc(l.id)}" aria-label="Less">−</button><i>${l.qty}</i><button type="button" data-cq="1" data-id="${esc(l.id)}" aria-label="More">+</button></div></div>
+      <button type="button" class="ci-x" data-crm="${esc(l.id)}">Remove</button></div>`).join("")}
+      <div class="sr fin"><span>Total product amount</span><b>${rs(m.total)}</b></div></div>
+    <div class="cbox"><h4>Promo code</h4>
+      <div class="cpn"><input id="c-promo" value="${esc(C.promo ? C.promo.code : C.promoText)}" placeholder="Enter promo code" autocomplete="off" autocapitalize="characters" maxlength="20" ${C.promo ? "readonly" : ""}>
+      ${C.promo ? '<button type="button" class="btn ghost sm" id="promo-x">Remove</button>' : '<button type="button" class="btn ghost sm" id="promo-v">Verify Promo Code</button>'}</div>
+      ${C.promo ? `<small class="cpn-m ok">Promo applied. You save ${rs(C.promo.discount)}.</small>` : ""}</div>
+    <div class="cbox"><h4>Order instructions <small>(optional)</small></h4><textarea id="c-note" rows="3" maxlength="500" placeholder="Anything the admin should know about this order">${esc(C.note)}</textarea></div>
+    <div class="cbox"><h4>Your location</h4>
+      <button type="button" class="btn ghost" id="loc-live">${C.lat != null ? "Location captured ✓ (tap to update)" : "Use my live location"}</button>
+      ${C.lat != null ? '<small class="cpn-m ok">Live location saved. It is sent only to AMD Mart on WhatsApp.</small>' : ""}
+      <p class="hint" style="margin:10px 0 6px">Or enter your address (required if you don't share live location):</p>
+      <input id="c-house" value="${esc(C.house)}" placeholder="House / flat number" maxlength="60">
+      <input id="c-building" value="${esc(C.building)}" placeholder="Building name" maxlength="80">
+      <select id="c-area"><option value="">Area</option>${AREAS.map((a) => `<option ${C.area === a.name ? "selected" : ""}>${esc(a.name)}</option>`).join("")}</select></div>
+    <div class="cbox" id="ship-box">${shipHtml(lines, m)}</div>
+    <div class="cbox" id="sum-box">${sumHtml(m)}</div>
+    <button class="btn" id="place-order" type="button">Place Order on WhatsApp</button>
+    <p class="hint" style="text-align:center">This sends an order request only. AMD Mart confirms availability and payment with you on WhatsApp.</p>`;
+  body.innerHTML = `<div class="sell-h"><button class="sell-back" id="cart-back" type="button" aria-label="Back">${ic("back")}</button><h2>My Cart</h2></div><div class="cart-pg" id="cart-pg">${inner}</div>`;
+  dlgEl.scrollTop = st;
+  const back = $("#cart-back"); if (back) back.onclick = () => dlgEl.close();
+  const root = $("#cart-pg");
+  root.onclick = safe(cartClick);
+  root.oninput = (e) => {
+    const t = e.target;
+    if (t.id === "c-note") C.note = t.value;
+    else if (t.id === "c-promo") C.promoText = t.value;
+    else if (t.id === "c-house") { C.house = t.value; refreshShip(); }
+    else if (t.id === "c-building") { C.building = t.value; refreshShip(); }
+  };
+  root.onchange = (e) => {
+    const t = e.target;
+    if (t.id === "c-area") { C.area = t.value; refreshShip(); }
+    else if (t.dataset && t.dataset.ship) { C.ship = t.dataset.ship; refreshShip(); }
+  };
+}
+function cartPage() {
+  open("", true);
+  dlgEl.scrollTop = 0;
+  if (!histPushed) { try { history.pushState({ d: 1 }, ""); histPushed = true; } catch (_) {} }
+  drawCart();
+}
+async function cartClick(e) {
+  const t = e.target.closest("button"); if (!t) return;
+  if (t.id === "cart-shop") { dlgEl.close(); show("explore"); return; }
+  if (t.dataset.cq) {
+    const it = cart.find((x) => x.id === t.dataset.id); if (!it) return;
+    it.qty = Math.max(1, Math.min(20, it.qty + Number(t.dataset.cq)));
+    C.promo = null; saveCart(); drawCart(); return;
+  }
+  if (t.dataset.crm) { cart = cart.filter((x) => x.id !== t.dataset.crm); C.promo = null; saveCart(); drawCart(); return; }
+  if (t.id === "promo-x") { C.promo = null; C.promoText = ""; drawCart(); return; }
+  if (t.id === "promo-v") {
+    if (!need()) return;
+    const raw = $("#c-promo").value; C.promoText = raw;
+    if (!raw.trim()) return toast("Enter a promo code first.");
+    const code = normCoupon(raw);
+    if (S.reqs.some((r) => r.buyerId === S.user.uid && r.couponCode === code)) return toast("You have reached the maximum use limit of this coupon.");
+    t.disabled = true; t.textContent = "Checking…";
+    try { C.promo = await checkCoupon(raw, cartTotal(cartLines())); C.promoText = C.promo.code; drawCart(); }
+    catch (err) { t.disabled = false; t.textContent = "Verify Promo Code"; throw err; }
+    return;
+  }
+  if (t.id === "loc-live") {
+    if (!navigator.geolocation) return toast("Live location isn't available on this device. Please enter your address.");
+    t.disabled = true; t.textContent = "Getting your location…";
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { C.lat = pos.coords.latitude; C.lng = pos.coords.longitude; drawCart(); },
+      () => { toast("Location permission was not given. Please enter your address below."); drawCart(); },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });
+    return;
+  }
+  if (t.id === "place-order") placeOrder();
+}
+// Opens WhatsApp with the order written out. Nothing is saved or confirmed here: it is only a request.
+function placeOrder() {
+  const lines = cartLines();
+  if (!lines.length) return toast("Your cart is empty.");
+  if (!locOk()) return toast("Please share your live location, or fill house/flat number, building name and area.");
+  const m = cartMoney(lines);
+  if (!C.ship) return toast("Please choose a delivery option.");
+  if (C.ship === "home" && !(m.del && m.del.ok)) return toast("Delivery fee can't be worked out. Choose free pickup or fix your location.");
+  const name = (S.user && (S.me.name || S.user.displayName)) || "", phone = (S.me && S.me.phone) || "";
+  const L = [];
+  L.push("AMD MART - NEW ORDER REQUEST", "");
+  if (name) L.push("Customer: " + name);
+  if (phone) L.push("Phone: " + phone);
+  if (name || phone) L.push("");
+  L.push("Products:");
+  lines.forEach((l, i) => L.push(`${i + 1}. ${l.p.title} × ${l.qty} @ ${rs(l.p.price)} = ${rs(Number(l.p.price) * l.qty)} (Seller area: ${l.p.area || l.p.location || "Ahmedabad"})`));
+  L.push("", "Product Total: " + rs(m.total));
+  if (C.promo) L.push("Promo Code: " + C.promo.code, "Promo Discount: " + rs(m.disc), "Amount after Discount: " + rs(m.after));
+  if (C.ship === "home") L.push("Delivery: Home Delivery via Uber Parcel - " + rs(m.fee) + (m.del.rows.length === 1 ? ` (about ${m.del.rows[0].km} km)` : ` (${m.del.rows.length} pickups)`));
+  else L.push("Delivery: Free Pickup from Seller - ₹0");
+  L.push("", "Final Total: " + rs(m.final), "");
+  if (C.lat != null) L.push("Customer Location: " + mapsLink());
+  if (C.house.trim() || C.building.trim() || C.area) L.push(`Address: ${C.house.trim()}, ${C.building.trim()}, ${C.area}`);
+  L.push("Order Instructions: " + (C.note.trim() || "None"), "", "Please confirm my order.");
+  const url = `https://wa.me/${ORDER_WA}?text=${encodeURIComponent(L.join("\n"))}`;
+  const w = window.open(url, "_blank");
+  if (!w) location.href = url;
+  toast("Opening WhatsApp. Your order is not confirmed until AMD Mart replies.");
+}
 const catName = (id) => (S.cats.find((c) => c.id === id) || {}).name || "this category";
 function moreHtml(p) {
   const list = S.products.filter((x) => x.id !== p.id && x.category === p.category && x.status !== "sold").slice(0, 8);
@@ -644,15 +855,9 @@ async function detail(id) {
       <div class="ir"><span>${ic("check")}Condition</span><b><i class="cond ${condClass(p.condition || "Used")}">${esc(p.condition || "Used")}</i></b></div>
       ${p.gender ? `<div class="ir"><span>${ic("tag")}For</span><b>${esc(p.gender)}</b></div>` : ""}${p.size ? `<div class="ir"><span>${ic("tag")}Size</span><b>${esc(p.size)}</b></div>` : ""}<div class="ir"><span>${ic("cap")}Seller's college</span><b id="d-college">…</b></div>
     </div>
-    <h4 class="dt-h">Description</h4>
-    <p class="dt-desc">${esc(p.description) || "No description added."}</p>
     ${own ? `<div class="act" style="display:flex;gap:8px"><button class="btn" id="d-sold" ${p.status === "sold" ? "disabled" : ""}>Mark sold</button><button class="btn red" id="d-del">Delete</button></div>`
       : p.status === "sold" ? "<p><b>This item is sold.</b></p>"
-      : myReq ? `<div class="row" id="my-req">${myReqHtml(myReq)}</div>`
-      : `<form id="req-f"><textarea name="m" rows="2" maxlength="500" placeholder="Note for admin (optional)"></textarea>
-        <div class="cpn"><input id="cpn-i" placeholder="Enter coupon code" autocomplete="off" autocapitalize="characters" maxlength="20"><button type="button" class="btn ghost sm" id="cpn-v">Verify</button></div>
-        <small id="cpn-m" class="cpn-m hidden"></small>
-        <button class="btn">Request to Buy</button></form>`}
+      : `${myReq ? `<div class="row" id="my-req">${myReqHtml(myReq)}</div>` : ""}<div class="act" style="display:flex;gap:8px"><button class="btn" id="add-cart" type="button">Add to Cart</button><button class="btn ghost hidden" id="view-cart" type="button">View cart</button></div>`}
     <h4 class="more-h">More in ${esc(catName(p.category))}</h4>
     <div id="more-list" class="grid">${moreHtml(p)}</div></div>`, true);
   dlgEl.scrollTop = 0;
@@ -668,44 +873,12 @@ async function detail(id) {
   if (own) {
     $("#d-sold").onclick = safe(async () => { await markSold(id); $("#dlg").close(); toast("Marked as sold"); });
     $("#d-del").onclick = safe(async () => { if (confirm("Delete this listing?")) { await deleteProduct(id); $("#dlg").close(); toast("Deleted"); } });
-  } else if ($("#req-f")) {
-    // coupon: type a code, tap Verify, and the price shown here drops by the discount
-    const basePrice = $("#d-price").innerHTML, cpnI = $("#cpn-i"), cpnV = $("#cpn-v"), cpnM = $("#cpn-m");
-    let cp = null;
-    // one coupon use per account: your own earlier requests already show which codes you used
-    const COUPON_LIMIT_MSG = "You have reached the maximum use limit of this coupon.";
-    const usedBefore = (raw) => { const c = normCoupon(raw); return !!c && !!S.user && S.reqs.some((r) => r.buyerId === S.user.uid && r.couponCode === c); };
-    const cpnMsg = (txt, cls = "") => { cpnM.textContent = txt; cpnM.className = "cpn-m " + cls; cpnM.classList.toggle("hidden", !txt); };
-    const cpnReset = () => { cp = null; $("#d-price").innerHTML = basePrice; cpnMsg(""); };
-    cpnI.oninput = () => { if (cp || cpnM.textContent) cpnReset(); };
-    cpnV.onclick = async () => {
-      if (!need()) return;
-      if (!cpnI.value.trim()) return cpnMsg("Enter a coupon code first.", "no");
-      if (usedBefore(cpnI.value)) { cpnReset(); return cpnMsg(COUPON_LIMIT_MSG, "no"); }
-      cpnV.disabled = true; cpnV.textContent = "Checking…";
-      try {
-        cp = await checkCoupon(cpnI.value, p.price);
-        cpnI.value = cp.code;
-        $("#d-price").innerHTML = `₹${cp.finalPrice.toLocaleString("en-IN")}<s>₹${Number(p.price).toLocaleString("en-IN")}</s>`;
-        cpnMsg(`Coupon applied. You save ₹${cp.discount.toLocaleString("en-IN")}.`, "ok");
-      } catch (err) { cpnReset(); cpnMsg(err.message, "no"); }
-      finally { cpnV.disabled = false; cpnV.textContent = "Verify"; }
-    };
-    $("#req-f").onsubmit = safe(async (e) => {
-      e.preventDefault();
-      if (!need()) return;
-      if (activeReq(id)) throw new Error("You already have a request for this product. Check the Requests tab.");
-      const code = cpnI.value.trim();
-      if (code && usedBefore(code)) throw new Error(COUPON_LIMIT_MSG);
-      if (code && (!cp || cp.code !== normCoupon(code))) throw new Error("Tap Verify to apply your coupon, or clear the code.");
-      const btn = e.target.querySelector(".btn:not(.ghost)"), label = btn.textContent;
-      btn.disabled = true; btn.textContent = "Sending…";   // instant feedback, and no double taps
-      try {
-        if (!(S.me.phone || await getMyPhone())) { btn.disabled = false; btn.textContent = label; return phoneDialog(() => detail(id)); }
-        await sendRequest(p, e.target.m.value, code ? cp.code : "");
-      } catch (err) { btn.disabled = false; btn.textContent = label; throw err; }
-      $("#dlg").close(); toast("Request sent to seller!"); show("requests");
-    });
+  } else if ($("#add-cart")) {
+    const ab = $("#add-cart"), vb = $("#view-cart");
+    const sync = () => { const q = (cart.find((x) => x.id === id) || {}).qty || 0; ab.textContent = q ? `Added (${q}) · Add one more` : "Add to Cart"; vb.classList.toggle("hidden", !q); };
+    ab.onclick = () => { addToCart(id); toast("Added to cart"); sync(); };
+    vb.onclick = () => cartPage();
+    sync();
   }
   const [imgs, seller] = await Promise.all([getProductImages(id), getUser(p.sellerId).catch(() => null)]);
   if (detailP !== p || !dlgEl.open || !$("#gal")) return;   // user already left or opened another item
@@ -795,3 +968,6 @@ onUser(async (u) => {
   }
   renderAll();
 });
+
+renderCartFab();
+$("#cartfab").onclick = cartPage;
