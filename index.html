@@ -17,12 +17,12 @@
 <meta property="og:title" content="AMD Mart - Buy &amp; Sell Products Among Ahmedabad Students">
 <meta property="og:description" content="AMD Mart is a student-to-student marketplace in Ahmedabad. Buy and sell used books, hostel essentials, shoes and clothes, projects, traditional wear and IoT components near your college.">
 <meta property="og:url" content="https://amdmart.com/">
-<meta property="og:image" content="https://i.ibb.co/Wp2hbzVr/71232172-DA72-42-D3-B817-511-E00-B931-F1.jpg">
+<meta property="og:image" content="https://i.ibb.co/tpyCskfp/75-C80-FC1-2585-45-E3-BF9-A-DBAFA069-ED0-B.png">
 <meta property="og:locale" content="en_IN">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="AMD Mart - Buy &amp; Sell Products Among Ahmedabad Students">
 <meta name="twitter:description" content="AMD Mart is a student-to-student marketplace in Ahmedabad. Buy and sell used books, hostel essentials, shoes and clothes, projects, traditional wear and IoT components near your college.">
-<meta name="twitter:image" content="https://i.ibb.co/Wp2hbzVr/71232172-DA72-42-D3-B817-511-E00-B931-F1.jpg">
+<meta name="twitter:image" content="https://i.ibb.co/tpyCskfp/75-C80-FC1-2585-45-E3-BF9-A-DBAFA069-ED0-B.png">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -32,7 +32,7 @@
       "@id": "https://amdmart.com/#organization",
       "name": "AMD Mart",
       "url": "https://amdmart.com/",
-      "logo": "https://i.ibb.co/Wp2hbzVr/71232172-DA72-42-D3-B817-511-E00-B931-F1.jpg",
+      "logo": "https://i.ibb.co/tpyCskfp/75-C80-FC1-2585-45-E3-BF9-A-DBAFA069-ED0-B.png",
       "description": "AMD Mart is a student-to-student marketplace in Ahmedabad. Buy and sell used books, hostel essentials, shoes and clothes, projects, traditional wear and IoT components near your college.",
       "areaServed": {
         "@type": "City",
@@ -56,8 +56,8 @@
   ]
 }
 </script>
-<link rel="icon" href="https://i.ibb.co/Wp2hbzVr/71232172-DA72-42-D3-B817-511-E00-B931-F1.jpg">
-<link rel="apple-touch-icon" href="https://i.ibb.co/Wp2hbzVr/71232172-DA72-42-D3-B817-511-E00-B931-F1.jpg">
+<link rel="icon" href="https://i.ibb.co/tpyCskfp/75-C80-FC1-2585-45-E3-BF9-A-DBAFA069-ED0-B.png">
+<link rel="apple-touch-icon" href="https://i.ibb.co/tpyCskfp/75-C80-FC1-2585-45-E3-BF9-A-DBAFA069-ED0-B.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="AMD Mart">
@@ -501,6 +501,26 @@ dialog.full{overflow-x:hidden}
 .pub-ov.done .pub-c{background:#ffffff1f;border-radius:50%;animation:pubPop .5s ease}
 .pub-ov.done .pub-ok{opacity:1}.pub-ov.done .pub-ok path{animation:pubDraw .6s .15s ease forwards}
 @keyframes pubDraw{to{stroke-dashoffset:0}}@keyframes pubPop{from{transform:scale(.6)}to{transform:scale(1)}}
+/* product page photo: show the whole picture (no cropping), taller box, empty space goes to the sides */
+.slide{height:min(100vw,480px);background-size:contain}
+
+/* ---- Cart button + cart page ---- */
+.cartfab{position:fixed;bottom:92px;left:max(14px,calc(50vw - 226px));width:50px;height:50px;border-radius:50%;background:linear-gradient(135deg,#4f5f72,#2a3441);color:#fff;display:grid;place-items:center;box-shadow:0 4px 14px #0004;z-index:4;padding:0;touch-action:manipulation}
+.cartfab .ic{width:24px;height:24px;stroke:#fff}
+.cartfab i{position:absolute;top:-4px;right:-4px;min-width:20px;height:20px;padding:0 5px;border-radius:10px;background:#e0483b;color:#fff;font:700 11px/20px system-ui,sans-serif;font-style:normal;text-align:center}
+.cart-pg{padding:14px 16px 30px;display:flex;flex-direction:column;gap:12px;color:var(--ink)}
+.cbox{border:1px solid var(--line);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.cbox h4{font-size:14px;margin:0}.cbox h4 small{font-weight:400;color:var(--g)}
+.cart-pg input:not([type=radio]),.cart-pg textarea,.cart-pg select{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;background:transparent;color:var(--ink);font:inherit}
+.ci{display:flex;gap:10px;align-items:center;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.ci img{width:56px;height:56px;border-radius:10px;object-fit:cover;background:#eee;flex:none}
+.ci-b{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}.ci-b b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px}.ci-b span{font-weight:700;font-size:14px}
+.qty{display:flex;align-items:center;gap:10px}.qty button{width:28px;height:28px;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--ink);font-size:16px;line-height:1;padding:0}.qty i{font-style:normal;min-width:18px;text-align:center;font-weight:700}
+.ci-x{background:none;border:0;color:#d4402f;font-size:12px;font-weight:600;padding:4px}
+.sr{display:flex;justify-content:space-between;gap:10px;font-size:14px}.sr.ok{color:#1d8a4d}.sr.fin{font-size:16px;font-weight:700}
+.opt{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:12px;padding:10px;cursor:pointer}.opt.on{border-color:var(--o);background:#6c7a8914}.opt.off{opacity:.6}
+.opt input{margin-top:3px;flex:none}.opt span{flex:1;display:flex;flex-direction:column;gap:2px;font-size:14px}.opt em{font-style:normal;font-weight:700}.opt small{color:var(--g);font-size:12px}
+.cart-pg .btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line);box-shadow:none}
 </style>
 </head>
 <body>
@@ -537,7 +557,7 @@ dialog.full{overflow-x:hidden}
 <div id="app">
   <div id="cat-bg" aria-hidden="true"></div>
   <header class="top">
-    <div class="brand"><img src="https://i.ibb.co/Wp2hbzVr/71232172-DA72-42-D3-B817-511-E00-B931-F1.jpg" alt="AMD Mart logo"><div><h1>AMD <span>Mart</span></h1></div></div>
+    <div class="brand"><img src="https://i.ibb.co/tpyCskfp/75-C80-FC1-2585-45-E3-BF9-A-DBAFA069-ED0-B.png" alt="AMD Mart logo"><div><h1>AMD <span>Mart</span></h1></div></div>
     <div class="top-r">
       <button id="loc-btn" class="loc-pill" aria-label="Change location" title="Change location"><svg class="ic"><use href="#i-pin"/></svg><span id="loc-name">Select area</span><svg class="ic chev"><use href="#i-chev"/></svg></button>
       <button id="fav-btn" class="icon-btn" aria-label="Liked products" title="Liked products"><svg class="ic"><use href="#i-heart"/></svg><i id="fav-count" class="dot cnt hidden"></i></button>
@@ -613,7 +633,8 @@ dialog.full{overflow-x:hidden}
 <a id="wa" class="wa hidden" href="https://wa.me/918849110467?text=Hi%20AMD%20Mart%2C%20I%20need%20help." target="_blank" rel="noopener" aria-label="Chat with us on WhatsApp" title="Chat on WhatsApp"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg><span class="wa-t">Feel free to<br>ask for help</span></a>
 <a id="ig" class="ig hidden" href="https://www.instagram.com/amdmart.in?srtk=N2luOG1lNnBpYTM0" target="_blank" rel="noopener" aria-label="Follow AMD Mart on Instagram for deals updates" title="Follow for deals update"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="1" class="dotf"/></svg><span class="ig-t">Follow for<br>deals update</span></a>
 <dialog id="dlg"><button class="x" id="x" aria-label="Close">✕</button><div id="dlg-body"></div></dialog>
+<button id="cartfab" class="cartfab hidden" type="button" aria-label="Open cart"><svg class="ic"><use href="#i-bag"/></svg><i id="cart-count">0</i></button>
 <div id="toast" class="toast hidden"></div>
-<script type="module" src="script.js?v=15"></script>
+<script type="module" src="script.js?v=16"></script>
 </body>
 </html>
