@@ -373,7 +373,7 @@ function tracker(r) {
 }
 // My open request for a product (cancelled or admin-rejected ones don't count), so I can't request the same product again.
 const activeReq = (pid) => S.user ? S.reqs.find((r) => r.buyerId === S.user.uid && r.productId === pid && r.status !== "cancelled" && r.adminStatus !== "rejected") : null;
-const myReqHtml = (r) => `<b>Your request</b>${r.couponCode ? `<div class="hint" style="margin-top:4px">Coupon ${esc(r.couponCode)} applied · price ₹${Number(r.finalPrice).toLocaleString("en-IN")}</div>` : ""}${tracker(r)}<p class="hint">To cancel it, open the Requests tab.</p>`;
+const myReqHtml = (r) => `<b>Your request</b>${r.couponCode ? `<div class="hint" style="margin-top:4px">Coupon ${esc(r.couponCode)} applied · price ₹${Number(r.finalPrice).toLocaleString("en-IN")}</div>` : ""}${tracker(r)}`;
 function renderRequests() {
   $("#req-tabs").innerHTML = "";   // no filters: this tab only lists requests for my own products
   if (!S.user) { $("#reqs").innerHTML = '<p class="empty">Log in to see requests for your products.</p>'; return; }
@@ -396,7 +396,14 @@ function renderProfile() {
     <h3 class="pad">My Listings</h3><div class="grid">${S.mine.map(card).join("") || '<p class="empty">Nothing listed yet.</p>'}</div>
     <h3 class="pad">Favourites</h3><div class="grid">${favs.map(card).join("") || '<p class="empty">No favourites yet.</p>'}</div>`;
 }
-function renderBell() { $("#dot").classList.toggle("hidden", !S.notifs.some((n) => !n.read)); }
+// Requests for MY products that are still waiting for the admin ("pending")
+const pendingReqs = () => S.user ? S.reqs.filter((r) => r.sellerId === S.user.uid && r.status !== "cancelled" && (r.adminStatus || "pending") === "pending") : [];
+// Bell badge: a number (pending requests + unread notifications), hidden when 0
+function renderBell() {
+  const n = pendingReqs().length + S.notifs.filter((x) => !x.read).length, el = $("#dot");
+  el.textContent = n > 99 ? "99+" : String(n);
+  el.classList.toggle("hidden", !n);
+}
 // Number badge on the heart: counts only liked products that still exist (deleted / sold ones no longer count),
 // so it always matches what the Liked Products list shows. Hidden when the number is 0.
 function renderFavBtn() {
@@ -548,7 +555,7 @@ function phoneDialog(onDone) {
 const CLOTH_CATS = ["shoes-clothes", "traditional"];   // categories that ask for male/female + size
 const SIZES = ["XS", "S", "M", "L", "XL", "XXL"];
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const LOGO_URL = "https://i.ibb.co/tpyCskfp/75-C80-FC1-2585-45-E3-BF9-A-DBAFA069-ED0-B.png";
+let LOGO_URL = "https://i.ibb.co/Wp2hbzVr/71232172-DA72-42-D3-B817-511-E00-B931-F1.jpg";
 async function postDialog() {
   if (!need()) return;
   if (!(await getMyPhone())) return phoneDialog(postDialog);
@@ -651,6 +658,7 @@ function renderCartFab() {
   const n = cartCount();
   b.classList.toggle("hidden", n === 0);
   $("#cart-count").textContent = n > 99 ? "99+" : String(n);
+  const nb = $("#nav-cart-n"); if (nb) { nb.textContent = n > 99 ? "99+" : String(n); nb.classList.toggle("hidden", n === 0); }
 }
 function saveCart() {
   try { localStorage.setItem("amd_cart", JSON.stringify(cart)); } catch (_) {}
@@ -898,11 +906,18 @@ async function detail(id) {
   $("#gal").innerHTML = slides(imgs); $("#gdots").innerHTML = dots(imgs.length);
   $("#d-college").textContent = seller?.college || "Not shared";
 }
+const REQ_STATUS = { pending: ["Pending", "wait"], approved: ["Confirmed", "ok"], rejected: ["Rejected", "no"], cancelled: ["Cancelled", "no"] };
 function bellDialog() {
   if (!need()) return;
-  open(`<h3>Notifications</h3><div class="list nlist">${S.notifs.map((n) => `<div class="row" data-n="${n.id}" style="${n.read ? "opacity:.6" : ""}"><b>${esc(n.title)}</b><div>${esc(n.message)}</div></div>`).join("") || '<p class="empty">Nothing new.</p>'}</div>`);
-  // Opening the list counts as seeing them: mark every unread one as read so the red dot goes away.
+  const reqs = S.reqs.filter((r) => r.sellerId === S.user.uid).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  const reqHtml = reqs.length ? `<h4 style="margin:2px 0 6px">Requests for your products</h4><div class="list">${reqs.map((r) => {
+    const [txt, cls] = r.status === "cancelled" ? REQ_STATUS.cancelled : (REQ_STATUS[r.adminStatus || "pending"] || REQ_STATUS.pending);
+    return `<div class="row"><b>${esc(r.productTitle)}</b> <span class="badge ${cls}">${txt}</span><div>Someone wants to buy this product.${cls === "wait" ? " AMD Mart will contact you on WhatsApp." : ""}</div></div>`;
+  }).join("")}</div><h4 style="margin:14px 0 6px">Updates</h4>` : "";
+  open(`<h3>Notifications</h3>${reqHtml}<div class="list nlist">${S.notifs.map((n) => `<div class="row" data-n="${n.id}" style="${n.read ? "opacity:.6" : ""}"><b>${esc(n.title)}</b><div>${esc(n.message)}</div></div>`).join("") || '<p class="empty">Nothing new.</p>'}</div>`);
+  // Opening the list counts as seeing the updates: mark every unread one as read so the number goes down.
   S.notifs.filter((n) => !n.read).forEach((n) => markNotificationRead(n.id).catch(() => {}));
+  renderBell();
 }
 
 function favDialog() {
@@ -983,3 +998,38 @@ onUser(async (u) => {
 
 renderCartFab();
 $("#cartfab").onclick = cartPage;
+$("#nav-cart").onclick = cartPage;
+
+/* ---------- logo: remove the white background in the browser (flood-fills only the white that touches the edges) ---------- */
+(function cleanLogo() {
+  const im = new Image(); im.crossOrigin = "anonymous";
+  im.onload = () => {
+    try {
+      const k = Math.min(1, 300 / Math.max(im.naturalWidth, im.naturalHeight)), w = Math.max(1, Math.round(im.naturalWidth * k)), h = Math.max(1, Math.round(im.naturalHeight * k));
+      const c = document.createElement("canvas"); c.width = w; c.height = h;
+      const g = c.getContext("2d"); g.drawImage(im, 0, 0, w, h);
+      const d = g.getImageData(0, 0, w, h), px = d.data, seen = new Uint8Array(w * h), st = [];
+      const white = (i) => px[i * 4] > 228 && px[i * 4 + 1] > 228 && px[i * 4 + 2] > 228;
+      const push = (x, y) => { const i = y * w + x; if (!seen[i] && white(i)) { seen[i] = 1; st.push(i); } };
+      for (let x = 0; x < w; x++) { push(x, 0); push(x, h - 1); }
+      for (let y = 0; y < h; y++) { push(0, y); push(w - 1, y); }
+      while (st.length) {
+        const i = st.pop(), x = i % w, y = (i / w) | 0;
+        if (x > 0) push(x - 1, y); if (x < w - 1) push(x + 1, y); if (y > 0) push(x, y - 1); if (y < h - 1) push(x, y + 1);
+      }
+      for (let i = 0; i < w * h; i++) if (seen[i]) px[i * 4 + 3] = 0;
+      // soften the edge: pale pixels touching the removed area become half see-through (no white halo)
+      for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
+        const i = y * w + x;
+        if (seen[i] || !(px[i * 4] > 190 && px[i * 4 + 1] > 190 && px[i * 4 + 2] > 190)) continue;
+        if (seen[i - 1] || seen[i + 1] || seen[i - w] || seen[i + w]) px[i * 4 + 3] = 110;
+      }
+      g.putImageData(d, 0, 0);
+      const url = c.toDataURL("image/png");
+      LOGO_URL = url;
+      document.querySelectorAll("img.amd-logo").forEach((e) => { e.src = url; });
+      document.querySelectorAll('link[rel="icon"],link[rel="apple-touch-icon"]').forEach((e) => { e.href = url; });
+    } catch (_) { /* image host blocked pixel access: keep the normal logo */ }
+  };
+  im.src = LOGO_URL;
+})();
