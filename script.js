@@ -1,12 +1,12 @@
 // script.js — AMD Mart storefront. All data comes from / goes to Firebase via amdmart-db.js
 import { auth } from "./firebase.js";
 import {
-  onUser, register, login, logout, isAdmin, getUser, listenCategories, listenProducts,
+  onUser, register, login, logout, isAdmin, getUser, listenCategories, listenProducts, getProduct,
   addProduct, getProductImages, markSold, deleteProduct, toggleFavourite, listenFavouriteIds, sendRequest,
   setRequestStatus, listenMyRequests, listenNotifications, markNotificationRead, saveLocationPref, getLocationPref,
   getMyPhone, savePhone, updateMyProfile, changeEmail, syncEmail, checkCoupon, normCoupon,
   googleSignIn, completeGoogleProfile, enablePush, listenPush
-} from "./amdmart-db.js?v=11";
+} from "./amdmart-db.js?v=12";
 import { areaDistance } from "./distances.js";
 
 const $ = (s) => document.querySelector(s);
@@ -144,7 +144,7 @@ function openZoom(list, start = 0) {
   load();
 }
 const ic = (n, c = "") => `<svg class="ic ${c}"><use href="#i-${n}"/></svg>`;
-const S = { me: {}, user: null, cats: [], products: [], mine: [], favs: [], reqs: [], notifs: [], cat: "", q: "", view: "home", admin: false, loc: null, loaded: false, loadErr: false, rf: "all" };
+const S = { me: {}, user: null, cats: [], products: [], mine: [], favs: [], reqs: [], notifs: [], cat: "", q: "", view: "home", admin: false, loc: null, loaded: false, loadErr: false, rf: "all", limit: 12, shown: 4, nShown: 4, allLoaded: false, growing: false };
 let userUnsubs = [];
 let detailP = null, detailImgs = [];   // product currently open in the full-screen detail page
 let histPushed = false;
@@ -358,13 +358,15 @@ function renderNearby() {
   if (!S.loc) { el.innerHTML = '<div class="empty"><p>Select your area to see deals near you.</p><div class="act"><button class="btn sm" data-loc>Choose area</button></div></div>'; return; }
   if (!S.loaded) { el.innerHTML = '<p class="empty">Loading nearby deals…</p>'; return; }
   const n = nearbyProducts(S.products, S.loc);
-  el.innerHTML = n.map(card).join("") ||
+  el.innerHTML = n.slice(0, S.nShown).map(card).join("") + (n.length ? (n.length > S.nShown || (!S.allLoaded && S.limit < 48) ? sentinel("nearby") : "") : "") ||
     '<div class="empty"><p>No products found in your area yet.</p><div class="act"><button class="btn sm" data-loc>Explore other areas</button><button class="btn sm ghost" data-v="explore">View all products</button></div></div>';
 }
+const sentinel = (kind) => `<div class="sentinel" data-more="${kind}" style="grid-column:1/-1;height:1px"></div>`;
 function renderProducts() {
   renderNearby();
   const f = filtered();
-  $("#grid").innerHTML = f.map(card).join("") || '<p class="empty">No products found.</p>';
+  $("#grid").innerHTML = f.slice(0, S.shown).map(card).join("") + (f.length > S.shown || !S.allLoaded ? sentinel("grid") : "") || '<p class="empty">No products found.</p>';
+  watchSentinels();
 }
 // Buying requests go to the admin only (the seller just gets a heads-up notification). One live step: admin review.
 const ADMIN_ST = { pending: ["Waiting for admin", "wait"], approved: ["Admin verified", "ok"], rejected: ["Admin rejected", "no"] };
@@ -392,7 +394,7 @@ function renderProfile() {
     $("#profile").innerHTML = '<div class="row" style="text-align:center;margin-top:20px"><h3>Welcome to AMD Mart</h3><p style="margin:8px 0 14px">Log in to sell, save favourites and send requests.</p><button class="btn full" id="p-login">Login / Sign up</button></div>';
     return;
   }
-  const favs = S.products.filter((p) => S.favs.includes(p.id));
+  const favs = favItems();
   $("#profile").innerHTML = `<div class="row" style="margin-top:12px"><h3>${esc(S.user.displayName || "Student")}</h3>
     <div class="pf"><small>${esc(S.user.email)}</small>
     <small>${S.me.phone ? "Phone: " + esc(S.me.phone) : "Phone: not added yet"}</small>
@@ -416,7 +418,15 @@ function renderFavBtn() {
   el.textContent = n > 99 ? "99+" : String(n);
   el.classList.toggle("hidden", !n);
 }
-const favItems = () => S.products.filter((p) => S.favs.includes(p.id));
+const extraProds = new Map();   // products fetched one by one (liked / in cart) that are not in the loaded page yet
+const allProds = () => { const have = new Set(S.products.map((p) => p.id)); return [...S.products, ...[...extraProds.values()].filter((p) => p && p.status === "active" && !have.has(p.id))]; };
+async function ensureProducts(ids) {
+  const have = new Set(S.products.map((p) => p.id)), need = [...new Set(ids)].filter((id) => !have.has(id) && !extraProds.has(id));
+  if (!need.length) return false;
+  await Promise.all(need.map(async (id) => { try { extraProds.set(id, await getProduct(id)); } catch (_) { extraProds.set(id, null); } }));
+  return true;
+}
+const favItems = () => allProds().filter((p) => S.favs.includes(p.id));
 const favListHtml = () => favItems().map(card).join("") || '<p class="empty">No liked products yet. Tap the heart on any product to save it here.</p>';
 const renderAll = () => {
   renderCats(); renderProducts(); renderRequests(); if (S.view === "profile") renderProfile(); renderBell(); renderFavBtn(); pruneCart();
@@ -656,7 +666,7 @@ let cart = (() => {
 // What the buyer has chosen on the cart page (kept while the page is redrawn)
 const C = { promo: null, promoText: "", note: "", lat: null, lng: null, house: "", building: "", area: "", ship: "" };
 const rs = (n) => "₹" + Number(n).toLocaleString("en-IN");
-const prodOf = (id) => S.products.find((p) => p.id === id);
+const prodOf = (id) => allProds().find((p) => p.id === id);
 const cartCount = () => cart.reduce((n, x) => n + x.qty, 0);
 function renderCartFab() {
   const n = cartCount(), nb = $("#nav-cart-n");
@@ -676,6 +686,8 @@ function addToCart(id) {
 function pruneCart() {
   let redraw = false;
   if (S.loaded) {
+    const miss = cart.map((x) => x.id).filter((id) => !S.products.some((p) => p.id === id) && !extraProds.has(id));
+    if (miss.length) { ensureProducts(miss).then(pruneCart); renderCartFab(); return; }   // look up cart items that are not in the loaded page before judging them gone
     const n = cart.length;
     cart = cart.filter((x) => { const p = prodOf(x.id); return p && p.status !== "sold"; });
     if (cart.length !== n) { C.promo = null; saveCart(); redraw = true; }
@@ -860,7 +872,7 @@ const slides = (imgs) => (imgs.length ? imgs : [""]).map((u) => `<div class="sli
 const dots = (n) => n > 1 ? Array.from({ length: n }, (_, i) => `<i class="${i ? "" : "on"}" data-g="${i}"></i>`).join("") : "";
 
 async function detail(id) {
-  const p = S.products.find((x) => x.id === id) || S.mine.find((x) => x.id === id);
+  const p = S.products.find((x) => x.id === id) || S.mine.find((x) => x.id === id) || extraProds.get(id) || await getProduct(id).catch(() => null);
   if (!p) return;
   detailP = p; detailImgs = p.thumb ? [p.thumb] : [];
   const own = S.user && S.user.uid === p.sellerId, myReq = own ? null : activeReq(id);
@@ -933,8 +945,8 @@ document.addEventListener("click", safe(async (e) => {
   if (!t) return;
   if (t.dataset.addcart) { e.stopPropagation(); if (addToCart(t.dataset.addcart)) toast("Added to cart"); else toast("Already in your cart"); }
   else if (t.dataset.v) { e.preventDefault(); show(t.dataset.v); }
-  else if (t.dataset.cat) { S.cat = t.dataset.cat; renderCats(); renderProducts(); show("explore"); }
-  else if (t.dataset.chip !== undefined) { S.cat = t.dataset.chip; renderCats(); renderProducts(); }
+  else if (t.dataset.cat) { S.cat = t.dataset.cat; S.shown = 4; needAll(); renderCats(); renderProducts(); show("explore"); }
+  else if (t.dataset.chip !== undefined) { S.cat = t.dataset.chip; S.shown = 4; if (S.cat) needAll(); renderCats(); renderProducts(); }
   else if (t.dataset.rf) { S.rf = t.dataset.rf; renderRequests(); }
   else if (t.dataset.fav) { e.stopPropagation(); if (need()) await toggleFavourite(t.dataset.fav); }
   else if (t.dataset.open) await detail(t.dataset.open);
@@ -953,7 +965,7 @@ $("#q-home").onfocus = () => { show("explore"); $("#q").focus(); };
 $("#bell").onclick = bellDialog;
 $("#fav-btn").onclick = favDialog;
 $("#loc-btn").onclick = locDialog;
-$("#q").oninput = (e) => { S.q = e.target.value.trim().toLowerCase(); if (S.view !== "explore") show("explore"); renderProducts(); };
+$("#q").oninput = (e) => { S.q = e.target.value.trim().toLowerCase(); S.shown = 4; if (S.q) needAll(); if (S.view !== "explore") show("explore"); renderProducts(); };
 
 /* ---------- live data ---------- */
 // Category order shown on Home and Explore (electronics removed)
@@ -961,10 +973,35 @@ const CAT_ORDER = ["shoes-clothes", "projects", "hostel", "traditional", "access
 const catRank = (id) => { const i = CAT_ORDER.indexOf(id); return i < 0 ? 99 : i; };
 listenCategories((c) => { S.cats = c.filter((x) => x.id !== "electronics").sort((a, b) => catRank(a.id) - catRank(b.id)); renderAll(); });
 let prodUnsub = null;
-function startProducts() {
-  prodUnsub?.(); S.loaded = false; S.loadErr = false; renderProducts();
-  prodUnsub = listenProducts((p) => { S.products = p; S.loaded = true; S.loadErr = false; renderAll(); },
-    {}, () => { S.loadErr = true; renderProducts(); });
+// Products load in small steps: the newest 12 first (so the Home page opens fast), then 12 more each time the person
+// scrolls to the end of the list. Each list shows 4 more products per scroll.
+function startProducts(keep = false) {
+  prodUnsub?.(); S.loadErr = false;
+  if (!keep) { S.loaded = false; renderProducts(); }
+  prodUnsub = listenProducts((p, raw) => {
+      S.products = p; S.loaded = true; S.loadErr = false; S.growing = false;
+      S.allLoaded = raw < S.limit;   // fewer came back than we asked for: that is everything
+      renderAll();
+    }, { limit: S.limit }, () => { S.loadErr = true; S.growing = false; renderProducts(); });
+}
+function growMore() { if (S.allLoaded || S.growing) return; S.growing = true; S.limit += 12; startProducts(true); }
+// Search and category filters must look at every product, so load them all (only once)
+function needAll() { if (!S.allLoaded && S.limit < 1e6) { S.limit = 1e6; S.growing = true; startProducts(true); } }
+let sentObs = null;
+function watchSentinels() {
+  if (!("IntersectionObserver" in window)) { S.shown = S.nShown = 1e9; needAll(); return; }
+  sentObs?.disconnect();
+  sentObs = new IntersectionObserver((ents) => {
+    for (const en of ents) {
+      if (!en.isIntersecting) continue;
+      const kind = en.target.dataset.more;
+      sentObs.unobserve(en.target);
+      if (kind === "nearby") { S.nShown += 4; if (S.nShown >= nearbyProducts(S.products, S.loc).length && S.limit < 48) growMore(); }
+      else { S.shown += 4; if (S.shown >= filtered().length) growMore(); }
+      renderProducts();
+    }
+  }, { rootMargin: "300px" });
+  document.querySelectorAll(".sentinel").forEach((e) => sentObs.observe(e));
 }
 startProducts();
 renderLoc();
@@ -988,7 +1025,7 @@ onUser(async (u) => {
     loadMe();
     syncEmail().catch(() => {});
     userUnsubs.push(
-      listenFavouriteIds((ids) => { S.favs = ids; renderAll(); }),
+      listenFavouriteIds((ids) => { S.favs = ids; renderAll(); ensureProducts(ids).then((got) => { if (got) renderAll(); }); }),
       listenProducts((p) => { S.mine = p; renderAll(); }, { sellerId: u.uid }),
       listenMyRequests((r) => { S.reqs = r; renderAll(); }),
       listenNotifications((n) => { S.notifs = n; renderAll(); })

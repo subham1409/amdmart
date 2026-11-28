@@ -7,7 +7,7 @@ import {
   GoogleAuthProvider, signInWithPopup, linkWithCredential, updatePassword
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import {
-  ref, get, set, update, remove, push, query, orderByChild, equalTo,
+  ref, get, set, update, remove, push, query, orderByChild, equalTo, limitToLast,
   onValue, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
 
@@ -328,9 +328,10 @@ export function listenProducts(cb, opts = {}, onError) {
   let q = ref(db, "products");
   if (opts.sellerId) q = query(q, orderByChild("sellerId"), equalTo(opts.sellerId));
   else if (opts.category) q = query(q, orderByChild("category"), equalTo(opts.category));
+  else if (opts.limit) q = query(q, orderByChild("createdAt"), limitToLast(opts.limit));   // only the newest N products
   return onValue(q, (s) =>
     cb(toList(s).filter((p) => p.status === "active" || opts.sellerId)
-      .sort((a, b) => b.createdAt - a.createdAt)), (err) => { console.error(err); if (onError) onError(err); });
+      .sort((a, b) => b.createdAt - a.createdAt), s.size), (err) => { console.error(err); if (onError) onError(err); });
 }
 export async function getProduct(pid) {
   const s = await get(ref(db, `products/${pid}`));
