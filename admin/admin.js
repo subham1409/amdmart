@@ -1,11 +1,14 @@
 // admin.js — admin UI. This is only a convenience layer: every action is enforced by
 // database.rules.json (admins/<uid> must exist), so editing this file grants nothing.
 import { db } from "../firebase.js";
-import { onUser, login, logout, isAdmin, seedCategories, verifyProduct, setAdminStatus, createCoupon, setCouponActive, deleteCoupon } from "../amdmart-db.js?v=4";
+import { onUser, login, logout, isAdmin, seedCategories, verifyProduct, setAdminStatus, createCoupon, setCouponActive, deleteCoupon } from "../amdmart-db.js?v=11";
 import { ref, onValue, remove, set, get, update } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+// Same category order as the main website (shoes & clothes first ... IoT last). Electronics is no longer used on the site.
+const CAT_ORDER = ["shoes-clothes", "projects", "hostel", "traditional", "accessories", "books", "iot"];
+const catRank = (id) => { const i = CAT_ORDER.indexOf(id); return i < 0 ? 99 : i; };
 const D = { products: [], requests: [], users: [], categories: [], coupons: [], deals: [] };
 let tab = "products", started = false;
 
@@ -74,7 +77,7 @@ function start() {
   if (started) return; started = true;
   onValue(ref(db, "products"), (s) => { D.products = list(s); draw(); });
   onValue(ref(db, "requests"), (s) => { D.requests = list(s); draw(); });
-  onValue(ref(db, "categories"), (s) => { D.categories = list(s).sort((a, b) => a.order - b.order); draw(); });
+  onValue(ref(db, "categories"), (s) => { D.categories = list(s).sort((a, b) => catRank(a.id) - catRank(b.id) || (a.order ?? 0) - (b.order ?? 0)); draw(); });
   onValue(ref(db, "deals"), (s) => { D.deals = list(s).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); draw(); });
   onValue(ref(db, "coupons"), (s) => { D.coupons = list(s).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); draw(); });
   onValue(ref(db, "users"), async (s) => {
@@ -156,7 +159,7 @@ function draw() {
   } else {
     h = `<form class="inline" id="cat-f"><input name="name" placeholder="New category name" required><button>Add</button><button type="button" class="gray" id="seed">Add default categories</button></form>
       <table><tr><th>ID</th><th>Name</th><th></th></tr>${D.categories.map((c) =>
-      `<tr><td>${esc(c.id)}</td><td>${esc(c.name)}</td><td><button class="red" data-delc="${c.id}">Delete</button></td></tr>`).join("")}</table>`;
+      `<tr><td>${esc(c.id)}</td><td>${esc(c.name)}${c.id === "electronics" ? " <small>(not shown on the website any more)</small>" : ""}</td><td><button class="red" data-delc="${c.id}">Delete</button></td></tr>`).join("")}</table>`;
   }
   $("#content").innerHTML = h;
 }
@@ -171,7 +174,8 @@ function openEdit(id) {
   f.elements.title.value = p.title || ""; f.price.value = p.price ?? ""; f.originalPrice.value = p.originalPrice ?? "";
   f.location.value = p.area || p.location || ""; f.description.value = p.description || "";
   f.status.value = p.status === "sold" ? "sold" : "active"; f.verified.checked = !!p.verified;
-  const cats = D.categories.some((c) => c.id === p.category) ? D.categories : [...D.categories, { id: p.category, name: p.category }];
+  const live = D.categories.filter((c) => c.id !== "electronics" || p.category === "electronics");
+  const cats = live.some((c) => c.id === p.category) ? live : [...live, { id: p.category, name: p.category }];
   f.category.innerHTML = cats.map((c) => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join(""); f.category.value = p.category;
   const conds = CONDITIONS.includes(p.condition) || !p.condition ? CONDITIONS : [...CONDITIONS, p.condition];
   f.condition.innerHTML = conds.map((c) => `<option>${esc(c)}</option>`).join(""); f.condition.value = p.condition || "Used";

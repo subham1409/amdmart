@@ -2,7 +2,7 @@
 // The web config below is public by design (security comes from the Rules files).
 // Never put a service-account private key in frontend code.
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-import { getAuth } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import { getAuth, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import { getDatabase } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
 
 const firebaseConfig = {
@@ -19,4 +19,6 @@ const firebaseConfig = {
 
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+// Stay signed in on this browser after the tab or Chrome is closed (until the person taps Logout).
+setPersistence(auth, browserLocalPersistence).catch(() => {});
 export const db = getDatabase(app);
