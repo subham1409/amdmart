@@ -6,12 +6,12 @@ import {
   setRequestStatus, listenMyRequests, listenNotifications, markNotificationRead, saveLocationPref, getLocationPref,
   getMyPhone, savePhone, updateMyProfile, changeEmail, syncEmail, checkCoupon, normCoupon,
   googleSignIn, completeGoogleProfile, enablePush, listenPush
-} from "./amdmart-db.js?v=10";
+} from "./amdmart-db.js?v=11";
 import { areaDistance } from "./distances.js";
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const ICONS = { iot: "cpu", books: "book", "shoes-clothes": "shoe", electronics: "laptop", hostel: "bed", services: "cap", traditional: "hanger", projects: "bag", others: "grid", "hot-deals": "flame" };
+const ICONS = { iot: "cpu", books: "book", "shoes-clothes": "shoe", electronics: "laptop", hostel: "bed", services: "cap", traditional: "hanger", accessories: "tag", projects: "bag", others: "grid", "hot-deals": "flame" };
 
 /* ---------- category themes (Explore page background) ---------- */
 const THEMES = {
@@ -21,6 +21,7 @@ const THEMES = {
   electronics:     { c: "#4453c9", g: ["#e8ebfd", "#e6f3fb"], icons: ["laptop", "cpu", "bell"] },
   hostel:          { c: "#7352b8", g: ["#f1eafd", "#eaf0fd"], icons: ["bed", "home", "heart"] },
   services:        { c: "#2a8a56", g: ["#e5f6ec", "#e8f4fb"], icons: ["cap", "check", "shield", "chat"] },
+  accessories:     { c: "#8a4fc2", g: ["#f3eafc", "#fbeaf3"], icons: ["tag", "heart", "bell"] },
   traditional:     { c: "#c0561a", g: ["#fdeee0", "#fdeaea"], icons: ["hanger", "palace", "heart"] },
   projects:        { c: "#3567a6", g: ["#e6f0fb", "#eaf6f3"], icons: ["bag", "cpu", "target"] },
   others:          { c: "#5d6b7a", g: ["#eef1f4", "#f1eff9"], icons: ["grid", "tag", "plus"] },
@@ -654,11 +655,8 @@ const rs = (n) => "₹" + Number(n).toLocaleString("en-IN");
 const prodOf = (id) => S.products.find((p) => p.id === id);
 const cartCount = () => cart.reduce((n, x) => n + x.qty, 0);
 function renderCartFab() {
-  const b = $("#cartfab"); if (!b) return;
-  const n = cartCount();
-  b.classList.toggle("hidden", n === 0);
-  $("#cart-count").textContent = n > 99 ? "99+" : String(n);
-  const nb = $("#nav-cart-n"); if (nb) { nb.textContent = n > 99 ? "99+" : String(n); nb.classList.toggle("hidden", n === 0); }
+  const n = cartCount(), nb = $("#nav-cart-n");
+  if (nb) { nb.textContent = n > 99 ? "99+" : String(n); nb.classList.toggle("hidden", n === 0); }
 }
 function saveCart() {
   try { localStorage.setItem("amd_cart", JSON.stringify(cart)); } catch (_) {}
@@ -955,7 +953,7 @@ $("#q").oninput = (e) => { S.q = e.target.value.trim().toLowerCase(); if (S.view
 
 /* ---------- live data ---------- */
 // Category order shown on Home and Explore (electronics removed)
-const CAT_ORDER = ["shoes-clothes", "projects", "hostel", "traditional", "books", "iot"];
+const CAT_ORDER = ["shoes-clothes", "projects", "hostel", "traditional", "accessories", "books", "iot"];
 const catRank = (id) => { const i = CAT_ORDER.indexOf(id); return i < 0 ? 99 : i; };
 listenCategories((c) => { S.cats = c.filter((x) => x.id !== "electronics").sort((a, b) => catRank(a.id) - catRank(b.id)); renderAll(); });
 let prodUnsub = null;
@@ -997,7 +995,6 @@ onUser(async (u) => {
 });
 
 renderCartFab();
-$("#cartfab").onclick = cartPage;
 $("#nav-cart").onclick = cartPage;
 
 /* ---------- logo: remove the white background in the browser (flood-fills only the white that touches the edges) ---------- */

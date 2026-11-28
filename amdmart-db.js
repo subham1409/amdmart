@@ -33,15 +33,31 @@ export async function register({ name, email, password, phone = "", college = ""
   return cred.user;
 }
 export async function login(email, password) {
-  const cred = await signInWithEmailAndPassword(auth, email, password);
-  const id = cred.user.uid;
-  // Self-heal: create the profile if an earlier signup saved the account but not the profile.
-  if (!(await get(ref(db, `users/${id}`))).exists()) {
-    await update(ref(db), {
-      [`users/${id}`]: { name: cred.user.displayName || "Student", college: "", createdAt: Date.now() },
-      [`userPrivate/${id}`]: { email: cred.user.email, phone: "" }
-    });
+  let cred;
+  try {
+    cred = await signInWithEmailAndPassword(auth, String(email).trim(), password);
+  } catch (e) {
+    const c = e && e.code;
+    if (c === "auth/invalid-credential" || c === "auth/wrong-password" || c === "auth/user-not-found" || c === "auth/invalid-login-credentials")
+      throw new Error("Wrong email or password. If you signed up with Google, tap “Continue with Google” instead.");
+    if (c === "auth/too-many-requests") throw new Error("Too many attempts. Please wait a few minutes or use “Continue with Google”.");
+    if (c === "auth/network-request-failed") throw new Error("No internet connection. Please try again.");
+    if (c === "auth/operation-not-allowed") throw new Error("Email login isn't turned on yet. (Enable Email/Password in Firebase > Authentication > Sign-in method.)");
+    if (c === "auth/user-disabled") throw new Error("This account has been disabled.");
+    if (c === "auth/invalid-email") throw new Error("Please enter a valid email address.");
+    throw e;
   }
+  // Self-heal: create the profile if an earlier signup saved the account but not the profile.
+  // Never lets a profile problem block the login itself (an empty phone number is rejected by the database rules, so none is written).
+  try {
+    const id = cred.user.uid;
+    if (!(await get(ref(db, `users/${id}`))).exists()) {
+      await update(ref(db), {
+        [`users/${id}`]: { name: cred.user.displayName || "Student", college: "", createdAt: Date.now() },
+        [`userPrivate/${id}/email`]: String(cred.user.email || "").slice(0, 120)
+      });
+    }
+  } catch (_) {}
   return cred;
 }
 // Google sign-in / sign-up. The person just picks their Google account; the name and email come from Google.
@@ -215,7 +231,7 @@ export function listenCategories(cb) {
 export async function seedCategories() {
   const defaults = [
     ["shoes-clothes", "Shoes & Clothes"], ["projects", "Projects"], ["hostel", "Hostel Essentials"],
-    ["traditional", "Traditional Wear"], ["books", "Books & Notes"], ["iot", "IoT & Components"],
+    ["traditional", "Traditional Wear"], ["accessories", "Accessories"], ["books", "Books & Notes"], ["iot", "IoT & Components"],
     ["services", "Services"], ["others", "Others"],
     ["hot-deals", "Hot Deals"]
   ];
