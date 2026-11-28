@@ -230,8 +230,12 @@ function nearbyProducts(list, loc) {
       return { ...p, _same: same, _d: d, _dd: km != null ? km * 1000 : d };
     })
     .filter((p) => p._same || (p._dd != null && p._dd <= RADIUS_M))
-    .sort((a, b) => (b._same - a._same) || ((a._dd ?? 0) - (b._dd ?? 0)));
+    .sort((a, b) => shuffleKey(a.id) - shuffleKey(b.id));   // random order, different on every visit (but steady while the page stays open)
 }
+// Each product gets a random number the first time it is seen on this page load, so the Nearby list is
+// shuffled on every visit but does not jump around when live updates arrive.
+const shuffleKeys = new Map();
+const shuffleKey = (id) => { if (!shuffleKeys.has(id)) shuffleKeys.set(id, Math.random()); return shuffleKeys.get(id); };
 // Approximate distance from the user's chosen area to the product's area (uses the saved table in distances.js)
 function distText(p) {
   const to = p.area || p.location;
