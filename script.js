@@ -375,22 +375,12 @@ function tracker(r) {
 const activeReq = (pid) => S.user ? S.reqs.find((r) => r.buyerId === S.user.uid && r.productId === pid && r.status !== "cancelled" && r.adminStatus !== "rejected") : null;
 const myReqHtml = (r) => `<b>Your request</b>${r.couponCode ? `<div class="hint" style="margin-top:4px">Coupon ${esc(r.couponCode)} applied · price ₹${Number(r.finalPrice).toLocaleString("en-IN")}</div>` : ""}${tracker(r)}<p class="hint">To cancel it, open the Requests tab.</p>`;
 function renderRequests() {
-  if (!S.user) { $("#req-tabs").innerHTML = ""; $("#reqs").innerHTML = '<p class="empty">Log in to see your requests.</p>'; return; }
-  const isSell = (r) => r.sellerId === S.user.uid;
-  const nBuy = S.reqs.filter((r) => !isSell(r)).length, nSell = S.reqs.length - nBuy;
-  $("#req-tabs").innerHTML = [["all", "All", S.reqs.length], ["buying", "Buying requests", nBuy], ["selling", "Selling requests", nSell]]
-    .map(([k, l, n]) => `<button class="chip ${S.rf === k ? "on" : ""}" data-rf="${k}">${l} (${n})</button>`).join("");
-  const shown = S.reqs.filter((r) => S.rf === "all" || (S.rf === "selling" ? isSell(r) : !isSell(r)));
-  $("#reqs").innerHTML = shown.map((r) => {
-    const seller = r.sellerId === S.user.uid;
-    if (seller) return `<div class="row"><b>${esc(r.productTitle)}</b> <span class="badge">Selling</span>
-      <div>${r.status === "cancelled" ? "This request was cancelled." : "Someone made a request for your product. Admin will contact you on WhatsApp regarding it."}</div></div>`;
-    return `<div class="row"><b>${esc(r.productTitle)}</b> <span class="badge">Buying</span>
-      <div>You requested${r.message ? ": " + esc(r.message) : ""}</div>
-      ${r.couponCode ? `<div class="hint" style="margin-top:4px">Coupon ${esc(r.couponCode)} applied · price ₹${Number(r.finalPrice).toLocaleString("en-IN")}</div>` : ""}
-      ${tracker(r)}
-      ${r.status === "pending" && r.adminStatus !== "rejected" ? `<div class="act"><button class="btn sm ghost" data-st="cancelled" data-r="${r.id}">Cancel request</button></div>` : ""}</div>`;
-  }).join("") || `<p class="empty">${S.rf === "buying" ? "You haven't sent any buying requests yet." : S.rf === "selling" ? "No one has requested your products yet." : "No requests yet."}</p>`;
+  $("#req-tabs").innerHTML = "";   // no filters: this tab only lists requests for my own products
+  if (!S.user) { $("#reqs").innerHTML = '<p class="empty">Log in to see requests for your products.</p>'; return; }
+  const mine = S.reqs.filter((r) => r.sellerId === S.user.uid).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  $("#reqs").innerHTML = mine.map((r) => `<div class="row"><b>${esc(r.productTitle)}</b>
+    <div>${r.status === "cancelled" ? "This request was cancelled." : "Someone wants to buy this product. AMD Mart will contact you on WhatsApp."}</div></div>`).join("")
+    || '<p class="empty">No one has requested your products yet.</p>';
 }
 function renderProfile() {
   if (!S.user) {
