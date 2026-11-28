@@ -338,7 +338,8 @@ function card(p) {
     <button class="heart ${S.favs.includes(p.id) ? "on" : ""}" data-fav="${p.id}" aria-label="Favourite">${ic("heart")}</button></div>
     <div class="info"><div class="t">${esc(p.title)}</div>
     <div class="price">₹${Number(p.price).toLocaleString("en-IN")}${p.originalPrice > p.price ? `<s>₹${Number(p.originalPrice).toLocaleString("en-IN")}</s>` : ""}</div>
-    <div class="loc">${ic("pin")}<span class="lt">${esc(p.area || p.location || "Ahmedabad")}</span>${(p._dd ?? p._d) != null ? `<span class="dist">${(p._dd ?? p._d) === 0 ? "Same area" : "≈ " + fmtDist(p._dd ?? p._d)}</span>` : ""}</div></div></div>`;
+    <div class="loc">${ic("pin")}<span class="lt">${esc(p.area || p.location || "Ahmedabad")}</span>${(p._dd ?? p._d) != null ? `<span class="dist">${(p._dd ?? p._d) === 0 ? "Same area" : "≈ " + fmtDist(p._dd ?? p._d)}</span>` : ""}</div>
+    ${p.status === "sold" || (S.user && S.user.uid === p.sellerId) ? "" : `<button type="button" class="btn sm card-cart" data-addcart="${p.id}">${cart.some((x) => x.id === p.id) ? "Added ✓" : "Add to Cart"}</button>`}</div></div>`;
 }
 function renderCats() {
   applyTheme();
@@ -576,6 +577,11 @@ async function postDialog() {
     <label>Price (₹)<input name="price" type="number" min="0" placeholder="Your price" required></label>
     <label>Original price (₹, optional)<input name="originalPrice" type="number" min="0" placeholder="MRP / new price"></label>
     <label>Condition<select name="condition"><option>Used</option><option>Like New</option><option>New</option></select></label>
+    <div class="cloth">
+      <b>Your current location <small style="font-weight:400">(required)</small></b>
+      <button type="button" class="btn ghost" id="sell-loc">Share my current location</button>
+      <small class="hint" id="sell-loc-m">Stand where the product is kept. Buyers only see an approximate area and distance, never your exact address.</small>
+    </div>
     <label>Pickup area<select name="area" required><option value="">Pickup area (approximate)</option>${AREAS.map((a) => `<option ${S.loc && S.loc.area === a.name ? "selected" : ""}>${esc(a.name)}</option>`).join("")}</select></label>
     <small class="hint">Buyers only see this area, never your exact address.</small>
     <label>Description<textarea name="description" rows="4" placeholder="Describe your product" maxlength="2000"></textarea></label>
@@ -591,6 +597,25 @@ async function postDialog() {
     if (!on) f.querySelectorAll("#cloth-box input").forEach((i) => (i.checked = false));
   };
   f.category.onchange = syncCloth; syncCloth();
+  // Seller shares their current location (compulsory). Saved rounded to about 1 km so the exact spot stays private;
+  // buyers' delivery distance is worked out from it.
+  let sellLoc = null;
+  const locBtn = $("#sell-loc"), locMsg = $("#sell-loc-m");
+  locBtn.onclick = () => {
+    if (!navigator.geolocation) return toast("Location isn't available on this device or browser.");
+    locBtn.disabled = true; locBtn.textContent = "Getting your location…";
+    navigator.geolocation.getCurrentPosition((pos) => {
+      sellLoc = { lat: Math.round(pos.coords.latitude * 100) / 100, lng: Math.round(pos.coords.longitude * 100) / 100 };
+      let best = null, bd = Infinity;
+      for (const a of AREAS) { const d = haversine(pos.coords.latitude, pos.coords.longitude, a.lat, a.lng); if (d < bd) { bd = d; best = a; } }
+      if (best) f.area.value = best.name;   // nearest known area (you can still change it)
+      locBtn.disabled = false; locBtn.textContent = "Location shared ✓ (tap to update)";
+      locMsg.textContent = best ? `Nearest area: ${best.name}. Change it below if it is wrong.` : "Location saved.";
+    }, () => {
+      locBtn.disabled = false; locBtn.textContent = "Share my current location";
+      toast("Please allow location access (browser settings) to sell a product.");
+    }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });
+  };
   f.onsubmit = safe(async (e) => {
     e.preventDefault();
     const d = Object.fromEntries(new FormData(f));
@@ -598,7 +623,8 @@ async function postDialog() {
     if (!ar) throw new Error("Please choose a pickup area.");
     if (CLOTH_CATS.includes(d.category) && !d.gender) throw new Error("Please choose Male or Female.");
     if (!CLOTH_CATS.includes(d.category)) { delete d.gender; delete d.size; }
-    d.lat = ar.lat; d.lng = ar.lng;
+    if (!sellLoc) throw new Error("Please share your current location first.");
+    d.lat = sellLoc.lat; d.lng = sellLoc.lng;
     d.sellerPrice = Number(d.price);   // seller's own price, kept for admin reports
     $("#post-btn").disabled = true;
     const ov = publishOverlay();
@@ -622,7 +648,7 @@ function publishOverlay(text = "Publishing your product…", secs = 3.2) {
 /* ---------- shopping cart (saved in this phone's browser, so it survives a refresh) ---------- */
 const ORDER_WA = "918849110467";   // AMD Mart WhatsApp number that receives order requests
 let cart = (() => {
-  try { const a = JSON.parse(localStorage.getItem("amd_cart") || "[]"); return Array.isArray(a) ? a.filter((x) => x && typeof x.id === "string" && x.qty > 0).map((x) => ({ id: x.id, qty: Math.min(20, Math.floor(x.qty)) })) : []; }
+  try { const a = JSON.parse(localStorage.getItem("amd_cart") || "[]"); return Array.isArray(a) ? a.filter((x) => x && typeof x.id === "string" && x.qty > 0).map((x) => ({ id: x.id, qty: 1 })) : []; }
   catch (_) { return []; }
 })();
 // What the buyer has chosen on the cart page (kept while the page is redrawn)
@@ -636,11 +662,15 @@ function renderCartFab() {
   b.classList.toggle("hidden", n === 0);
   $("#cart-count").textContent = n > 99 ? "99+" : String(n);
 }
-function saveCart() { try { localStorage.setItem("amd_cart", JSON.stringify(cart)); } catch (_) {} renderCartFab(); }
+function saveCart() {
+  try { localStorage.setItem("amd_cart", JSON.stringify(cart)); } catch (_) {}
+  renderCartFab();
+  document.querySelectorAll("[data-addcart]").forEach((b) => { b.textContent = cart.some((x) => x.id === b.dataset.addcart) ? "Added ✓" : "Add to Cart"; });
+}
 function addToCart(id) {
-  const it = cart.find((x) => x.id === id);
-  if (it) it.qty = Math.min(20, it.qty + 1); else cart.push({ id, qty: 1 });
-  C.promo = null; saveCart();
+  if (cart.some((x) => x.id === id)) return false;   // one of each product only
+  cart.push({ id, qty: 1 });
+  C.promo = null; saveCart(); return true;
 }
 // Drop products that were deleted or sold since they were added
 function pruneCart() {
@@ -665,12 +695,8 @@ function sellerPoint(p) {
   const a = AREAS.find((x) => x.name === (p.area || p.location));
   return a ? { lat: a.lat, lng: a.lng } : null;
 }
-function buyerPoint() {
-  if (C.lat != null) return { lat: C.lat, lng: C.lng };
-  const a = AREAS.find((x) => x.name === C.area);
-  return a ? { lat: a.lat, lng: a.lng } : null;
-}
-const locOk = () => C.lat != null || !!(C.house.trim() && C.building.trim() && C.area);
+function buyerPoint() { return C.lat != null ? { lat: C.lat, lng: C.lng } : null; }
+const locOk = () => C.lat != null;   // live location is compulsory
 // One Uber Parcel ride per seller, so the fee is worked out per seller and added up.
 function deliveryCalc(lines) {
   const bp = buyerPoint();
@@ -693,11 +719,11 @@ function cartMoney(lines) {
 const mapsLink = () => `https://www.google.com/maps?q=${C.lat},${C.lng}`;
 
 function shipHtml(lines, m) {
-  if (!locOk()) return '<p class="hint">Add your location above to see the delivery options.</p>';
+  if (!locOk()) return '<p class="hint">Share your location above to see the delivery options.</p>';
   const d = m.del;
   const homeTxt = d.ok
     ? `${rs(d.total)}${d.rows.length > 1 ? `<small>${d.rows.map((r) => `${esc(r.area)} ≈ ${r.km} km · ${rs(r.fee)}`).join("<br>")}</small>` : `<small>≈ ${d.rows[0].km} km from the seller</small>`}`
-    : `<small>${d.why === "seller" ? "Seller location is missing, so the fee can't be worked out. Choose free pickup." : "Select your area (or share live location) to see the fee."}</small>`;
+    : `<small>${d.why === "seller" ? "Seller location is missing, so the fee can't be worked out. Choose free pickup." : "Share your location to see the fee."}</small>`;
   return `<h4>Delivery option</h4>
     <label class="opt ${C.ship === "pickup" ? "on" : ""}"><input type="radio" name="ship" data-ship="pickup" ${C.ship === "pickup" ? "checked" : ""}><span><b>Free Pickup from Seller</b><em>₹0</em><small>You collect the product directly from the seller.</small></span></label>
     <label class="opt ${C.ship === "home" ? "on" : ""} ${d.ok ? "" : "off"}"><input type="radio" name="ship" data-ship="home" ${C.ship === "home" ? "checked" : ""} ${d.ok ? "" : "disabled"}><span><b>Home Delivery via Uber Parcel</b><em>${d.ok ? rs(d.total) : ""}</em>${d.ok ? homeTxt.replace(rs(d.total), "") : homeTxt}</span></label>
@@ -709,7 +735,16 @@ function sumHtml(m) {
     ${C.ship === "home" && m.del && m.del.ok ? `<div class="sr"><span>Delivery (Uber Parcel)</span><b>${rs(m.fee)}</b></div>` : C.ship === "pickup" ? '<div class="sr"><span>Delivery (free pickup)</span><b>₹0</b></div>' : ""}
     <div class="sr fin"><span>Final payable</span><b>${rs(m.final)}</b></div>`;
 }
+// Shows "about X km from the seller" under each product once the buyer's location is known
+function fillDist() {
+  const bp = buyerPoint();
+  document.querySelectorAll("[data-dist]").forEach((el) => {
+    const p = prodOf(el.dataset.dist), sp = p && sellerPoint(p);
+    el.textContent = bp && sp ? `Approx. ${(Math.round(haversine(sp.lat, sp.lng, bp.lat, bp.lng) / 100) / 10).toFixed(1)} km from seller (${p.area || p.location || "seller area"})` : "";
+  });
+}
 function refreshShip() {
+  fillDist();
   const lines = cartLines(), m = cartMoney(lines);
   if (C.ship === "home" && !(m.del && m.del.ok)) C.ship = "";
   if (!locOk()) C.ship = "";
@@ -725,8 +760,7 @@ function drawCart() {
   if (!cart.length) inner = '<div class="empty"><p>Your cart is empty.</p><div class="act"><button class="btn sm" id="cart-shop" type="button">Browse products</button></div></div>';
   else if (!lines.length) inner = '<p class="empty">Loading your cart…</p>';
   else inner = `
-    <div class="cbox">${lines.map((l) => `<div class="ci"><img src="${esc(l.p.thumb || "")}" alt="${esc(l.p.title)}"><div class="ci-b"><b>${esc(l.p.title)}</b><span>${rs(l.p.price)}</span>
-      <div class="qty"><button type="button" data-cq="-1" data-id="${esc(l.id)}" aria-label="Less">−</button><i>${l.qty}</i><button type="button" data-cq="1" data-id="${esc(l.id)}" aria-label="More">+</button></div></div>
+    <div class="cbox">${lines.map((l) => `<div class="ci"><img src="${esc(l.p.thumb || "")}" alt="${esc(l.p.title)}"><div class="ci-b"><b>${esc(l.p.title)}</b><span>${rs(l.p.price)}</span><small class="ci-d" data-dist="${esc(l.id)}"></small></div>
       <button type="button" class="ci-x" data-crm="${esc(l.id)}">Remove</button></div>`).join("")}
       <div class="sr fin"><span>Total product amount</span><b>${rs(m.total)}</b></div></div>
     <div class="cbox"><h4>Promo code</h4>
@@ -734,19 +768,15 @@ function drawCart() {
       ${C.promo ? '<button type="button" class="btn ghost sm" id="promo-x">Remove</button>' : '<button type="button" class="btn ghost sm" id="promo-v">Verify Promo Code</button>'}</div>
       ${C.promo ? `<small class="cpn-m ok">Promo applied. You save ${rs(C.promo.discount)}.</small>` : ""}</div>
     <div class="cbox"><h4>Order instructions <small>(optional)</small></h4><textarea id="c-note" rows="3" maxlength="500" placeholder="Anything the admin should know about this order">${esc(C.note)}</textarea></div>
-    <div class="cbox"><h4>Your location</h4>
-      <button type="button" class="btn ghost" id="loc-live">${C.lat != null ? "Location captured ✓ (tap to update)" : "Use my live location"}</button>
-      ${C.lat != null ? '<small class="cpn-m ok">Live location saved. It is sent only to AMD Mart on WhatsApp.</small>' : ""}
-      <p class="hint" style="margin:10px 0 6px">Or enter your address (required if you don't share live location):</p>
-      <input id="c-house" value="${esc(C.house)}" placeholder="House / flat number" maxlength="60">
-      <input id="c-building" value="${esc(C.building)}" placeholder="Building name" maxlength="80">
-      <select id="c-area"><option value="">Area</option>${AREAS.map((a) => `<option ${C.area === a.name ? "selected" : ""}>${esc(a.name)}</option>`).join("")}</select></div>
+    <div class="cbox"><h4>Your location <small>(required)</small></h4>
+      <button type="button" class="btn ${C.lat != null ? "ghost" : ""}" id="loc-live">${C.lat != null ? "Location shared ✓ (tap to update)" : "Share my location"}</button>
+      ${C.lat != null ? '<small class="cpn-m ok">Location saved. It is sent only to AMD Mart on WhatsApp.</small>' : '<small class="cpn-m no">You must share your location to place an order.</small>'}</div>
     <div class="cbox" id="ship-box">${shipHtml(lines, m)}</div>
     <div class="cbox" id="sum-box">${sumHtml(m)}</div>
     <button class="btn" id="place-order" type="button">Place Order on WhatsApp</button>
     <p class="hint" style="text-align:center">This sends an order request only. AMD Mart confirms availability and payment with you on WhatsApp.</p>`;
   body.innerHTML = `<div class="sell-h"><button class="sell-back" id="cart-back" type="button" aria-label="Back">${ic("back")}</button><h2>My Cart</h2></div><div class="cart-pg" id="cart-pg">${inner}</div>`;
-  dlgEl.scrollTop = st;
+  dlgEl.scrollTop = st; fillDist();
   const back = $("#cart-back"); if (back) back.onclick = () => dlgEl.close();
   const root = $("#cart-pg");
   root.onclick = safe(cartClick);
@@ -754,13 +784,10 @@ function drawCart() {
     const t = e.target;
     if (t.id === "c-note") C.note = t.value;
     else if (t.id === "c-promo") C.promoText = t.value;
-    else if (t.id === "c-house") { C.house = t.value; refreshShip(); }
-    else if (t.id === "c-building") { C.building = t.value; refreshShip(); }
   };
   root.onchange = (e) => {
     const t = e.target;
-    if (t.id === "c-area") { C.area = t.value; refreshShip(); }
-    else if (t.dataset && t.dataset.ship) { C.ship = t.dataset.ship; refreshShip(); }
+    if (t.dataset && t.dataset.ship) { C.ship = t.dataset.ship; refreshShip(); }
   };
 }
 function cartPage() {
@@ -772,11 +799,6 @@ function cartPage() {
 async function cartClick(e) {
   const t = e.target.closest("button"); if (!t) return;
   if (t.id === "cart-shop") { dlgEl.close(); show("explore"); return; }
-  if (t.dataset.cq) {
-    const it = cart.find((x) => x.id === t.dataset.id); if (!it) return;
-    it.qty = Math.max(1, Math.min(20, it.qty + Number(t.dataset.cq)));
-    C.promo = null; saveCart(); drawCart(); return;
-  }
   if (t.dataset.crm) { cart = cart.filter((x) => x.id !== t.dataset.crm); C.promo = null; saveCart(); drawCart(); return; }
   if (t.id === "promo-x") { C.promo = null; C.promoText = ""; drawCart(); return; }
   if (t.id === "promo-v") {
@@ -791,11 +813,11 @@ async function cartClick(e) {
     return;
   }
   if (t.id === "loc-live") {
-    if (!navigator.geolocation) return toast("Live location isn't available on this device. Please enter your address.");
+    if (!navigator.geolocation) return toast("Live location isn't available on this device or browser.");
     t.disabled = true; t.textContent = "Getting your location…";
     navigator.geolocation.getCurrentPosition(
       (pos) => { C.lat = pos.coords.latitude; C.lng = pos.coords.longitude; drawCart(); },
-      () => { toast("Location permission was not given. Please enter your address below."); drawCart(); },
+      () => { toast("Please allow location access (browser settings) to place an order."); drawCart(); },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });
     return;
   }
@@ -805,7 +827,7 @@ async function cartClick(e) {
 function placeOrder() {
   const lines = cartLines();
   if (!lines.length) return toast("Your cart is empty.");
-  if (!locOk()) return toast("Please share your live location, or fill house/flat number, building name and area.");
+  if (!locOk()) return toast("Please share your location to place an order.");
   const m = cartMoney(lines);
   if (!C.ship) return toast("Please choose a delivery option.");
   if (C.ship === "home" && !(m.del && m.del.ok)) return toast("Delivery fee can't be worked out. Choose free pickup or fix your location.");
@@ -823,7 +845,6 @@ function placeOrder() {
   else L.push("Delivery: Free Pickup from Seller - ₹0");
   L.push("", "Final Total: " + rs(m.final), "");
   if (C.lat != null) L.push("Customer Location: " + mapsLink());
-  if (C.house.trim() || C.building.trim() || C.area) L.push(`Address: ${C.house.trim()}, ${C.building.trim()}, ${C.area}`);
   L.push("Order Instructions: " + (C.note.trim() || "None"), "", "Please confirm my order.");
   const url = `https://wa.me/${ORDER_WA}?text=${encodeURIComponent(L.join("\n"))}`;
   const w = window.open(url, "_blank");
@@ -875,8 +896,8 @@ async function detail(id) {
     $("#d-del").onclick = safe(async () => { if (confirm("Delete this listing?")) { await deleteProduct(id); $("#dlg").close(); toast("Deleted"); } });
   } else if ($("#add-cart")) {
     const ab = $("#add-cart"), vb = $("#view-cart");
-    const sync = () => { const q = (cart.find((x) => x.id === id) || {}).qty || 0; ab.textContent = q ? `Added (${q}) · Add one more` : "Add to Cart"; vb.classList.toggle("hidden", !q); };
-    ab.onclick = () => { addToCart(id); toast("Added to cart"); sync(); };
+    const sync = () => { const q = cart.some((x) => x.id === id); ab.textContent = q ? "Added to cart ✓" : "Add to Cart"; ab.disabled = q; vb.classList.toggle("hidden", !q); };
+    ab.onclick = () => { if (addToCart(id)) toast("Added to cart"); sync(); };
     vb.onclick = () => cartPage();
     sync();
   }
@@ -901,9 +922,10 @@ function favDialog() {
 
 /* ---------- events ---------- */
 document.addEventListener("click", safe(async (e) => {
-  const t = e.target.closest("[data-v],[data-cat],[data-chip],[data-rf],[data-fav],[data-open],[data-st],[data-n],[data-loc],[data-area],[data-retry],#loc-gps,#p-login,#p-logout,#p-edit");
+  const t = e.target.closest("[data-v],[data-cat],[data-chip],[data-rf],[data-fav],[data-open],[data-addcart],[data-st],[data-n],[data-loc],[data-area],[data-retry],#loc-gps,#p-login,#p-logout,#p-edit");
   if (!t) return;
-  if (t.dataset.v) { e.preventDefault(); show(t.dataset.v); }
+  if (t.dataset.addcart) { e.stopPropagation(); if (addToCart(t.dataset.addcart)) toast("Added to cart"); else toast("Already in your cart"); }
+  else if (t.dataset.v) { e.preventDefault(); show(t.dataset.v); }
   else if (t.dataset.cat) { S.cat = t.dataset.cat; renderCats(); renderProducts(); show("explore"); }
   else if (t.dataset.chip !== undefined) { S.cat = t.dataset.chip; renderCats(); renderProducts(); }
   else if (t.dataset.rf) { S.rf = t.dataset.rf; renderRequests(); }
