@@ -523,6 +523,13 @@ dialog.full{overflow-x:hidden}
 .cart-pg .btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line);box-shadow:none}
 .ci-d{display:block;color:var(--g);font-size:11.5px}
 .card-cart{width:100%;margin-top:8px;padding:8px;font-size:12px;border-radius:10px}
+/* How it works: one short line when closed */
+.hiw{padding:10px 12px}
+.hiw summary{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.hiw h3{font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.hiw-tap{flex:none;white-space:nowrap;padding:5px 8px 5px 11px}
+.hiw-sub{margin:10px 0 0}
+.hiw[open] .hiw-steps{margin-top:12px}
 </style>
 </head>
 <body>
@@ -591,19 +598,20 @@ dialog.full{overflow-x:hidden}
       <details class="hiw">
         <summary>
           <h3>How AMD Mart Works</h3>
-          <p class="hiw-sub">Buy safely. Pick up directly. No delivery charges.</p>
           <span class="hiw-tap"><span class="t-open">Tap to see process</span><span class="t-close">Tap to hide</span><svg class="ic"><use href="#i-chev"/></svg></span>
         </summary>
+        <p class="hiw-sub">Add to cart, share your location, order on WhatsApp. Free pickup or Uber Parcel delivery.</p>
         <ol class="hiw-steps">
-          <li><span class="hiw-i"><svg class="ic"><use href="#i-send"/></svg><b>1</b></span><div><h4>Request a Product</h4><p>Found something you like? Tap “Request to Buy” and send your request.</p></div></li>
-          <li><span class="hiw-i"><svg class="ic"><use href="#i-shield"/></svg><b>2</b></span><div><h4>Admin Review</h4><p>Your request goes to the AMD Mart admin. The admin contacts the seller on WhatsApp and verifies the product is available.</p></div></li>
-          <li><span class="hiw-i"><svg class="ic"><use href="#i-check"/></svg><b>3</b></span><div><h4>Admin Confirms</h4><p>Once the admin verifies it, AMD Mart contacts you on WhatsApp and shares the seller’s contact and pickup details.</p></div></li>
-          <li><span class="hiw-i"><svg class="ic"><use href="#i-pin"/></svg><b>4</b></span><div><h4>Collect Your Product</h4><p>Visit the seller’s location, check the product and collect it directly from them.</p></div></li>
+          <li><span class="hiw-i"><svg class="ic"><use href="#i-bag"/></svg><b>1</b></span><div><h4>Add to Cart</h4><p>Found something you like? Tap “Add to Cart”. You can add products from different sellers.</p></div></li>
+          <li><span class="hiw-i"><svg class="ic"><use href="#i-pin"/></svg><b>2</b></span><div><h4>Share Location &amp; Choose Delivery</h4><p>Share your location, then choose Free Pickup from the seller or Home Delivery via Uber Parcel.</p></div></li>
+          <li><span class="hiw-i"><svg class="ic"><use href="#i-chat"/></svg><b>3</b></span><div><h4>Place Order on WhatsApp</h4><p>Your order request opens in WhatsApp. The admin checks with the seller that the product is available.</p></div></li>
+          <li><span class="hiw-i"><svg class="ic"><use href="#i-check"/></svg><b>4</b></span><div><h4>Admin Confirms</h4><p>AMD Mart confirms availability and payment with you on WhatsApp. Then you collect it, or Uber Parcel delivers it to you.</p></div></li>
         </ol>
         <div class="hiw-note"><b>Important:</b>
           <ul>
-            <li>AMD Mart does not provide home delivery. Buyers must collect products directly from sellers.</li>
-            <li>No advance payment, no hidden charges and no delivery charge, not even ₹1.</li>
+            <li>Pickup from the seller is free. Home delivery costs ₹50 up to 4 km, then ₹10.50 per km.</li>
+            <li>Uber Parcel is booked manually by AMD Mart after your order is confirmed. Delivery charges may be confirmed before dispatch.</li>
+            <li>Placing an order is only a request. It is not confirmed or paid until AMD Mart replies.</li>
           </ul>
         </div>
       </details>
@@ -637,6 +645,6 @@ dialog.full{overflow-x:hidden}
 <dialog id="dlg"><button class="x" id="x" aria-label="Close">✕</button><div id="dlg-body"></div></dialog>
 <button id="cartfab" class="cartfab hidden" type="button" aria-label="Open cart"><svg class="ic"><use href="#i-bag"/></svg><i id="cart-count">0</i></button>
 <div id="toast" class="toast hidden"></div>
-<script type="module" src="script.js?v=19"></script>
+<script type="module" src="script.js?v=20"></script>
 </body>
 </html>
